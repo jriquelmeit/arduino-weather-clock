@@ -190,13 +190,9 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         // Limpiar interior de la tarjeta
         _tft.fillRect(cardX + 2, 138, cardW - 4, 82, ILI9341_BLACK);
 
-        // 1. Título del día en Tamaño 2
+        // 1. Título del día en Tamaño 2 (nombre exacto del día en mayúsculas)
         char dayTitle[16];
-        if (i == 0) {
-            strncpy(dayTitle, "MANANA", sizeof(dayTitle));
-        } else {
-            toUpperString(weather.forecast[1].dayName, dayTitle, sizeof(dayTitle));
-        }
+        toUpperString(weather.forecast[i].dayName, dayTitle, sizeof(dayTitle));
 
         _tft.setTextSize(2);
         _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
