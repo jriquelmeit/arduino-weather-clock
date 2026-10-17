@@ -1,8 +1,18 @@
 #include "display_ui.h"
+#include <ctype.h>
 
 #define COLOR_BG_HEADER       0x0926
 #define COLOR_BORDER_CARD     0x2145
 #define COLOR_TEXT_MUTED      0x8410
+
+static void toUpperString(const char* src, char* dst, size_t maxLen) {
+    size_t i = 0;
+    while (src && src[i] && i < maxLen - 1) {
+        dst[i] = (char)toupper((unsigned char)src[i]);
+        i++;
+    }
+    dst[i] = '\0';
+}
 
 DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
     : _tft(cs, dc, rst), _lastRssi(-999), _lastWifiState(false) {
@@ -91,10 +101,10 @@ void DisplayUI::drawBaseLayout(const char* locationName) {
     _tft.print("CLIMA ACTUAL");
 
     // 4. Tarjeta Pronóstico Día 1 (Izquierda inferior)
-    _tft.drawRoundRect(4, 136, 154, 84, 6, COLOR_BORDER_CARD);
+    _tft.drawRoundRect(4, 136, 154, 86, 6, COLOR_BORDER_CARD);
 
     // 5. Tarjeta Pronóstico Día 2 (Derecha inferior)
-    _tft.drawRoundRect(162, 136, 154, 84, 6, COLOR_BORDER_CARD);
+    _tft.drawRoundRect(162, 136, 154, 86, 6, COLOR_BORDER_CARD);
 
     // 6. Línea divisoria barra inferior
     _tft.drawFastHLine(0, 224, 320, ILI9341_DARKGREY);
@@ -176,61 +186,63 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
     snprintf(condBuffer, sizeof(condBuffer), "%-18.18s", weather.current.conditionText);
     _tft.print(condBuffer);
 
-    // --- Tarjeta Día +1 (Mañana) ---
-    _tft.fillRect(6, 142, 150, 74, ILI9341_BLACK);
+    // --- Tarjetas de Pronóstico a 2 Días (Simétricas con caracteres de mayor tamaño) ---
+    for (int i = 0; i < 2; i++) {
+        int cardX = (i == 0) ? 4 : 162;
+        int cardW = 154;
 
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-    _tft.setCursor(10, 142);
-    _tft.printf("Manana (%s)", weather.forecast[0].dayName);
+        // Limpiar interior de la tarjeta
+        _tft.fillRect(cardX + 2, 138, cardW - 4, 82, ILI9341_BLACK);
 
-    // Icono Día 1 (pequeño)
-    drawWeatherIcon(24, 172, weather.forecast[0].iconType, true);
+        // 1. Título del día en Tamaño 2
+        char dayTitle[16];
+        if (i == 0) {
+            strncpy(dayTitle, "MANANA", sizeof(dayTitle));
+        } else {
+            toUpperString(weather.forecast[1].dayName, dayTitle, sizeof(dayTitle));
+        }
 
-    // Temperaturas Día 1
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
-    _tft.setCursor(48, 164);
-    _tft.printf("Max: %.1f C", weather.forecast[0].tempMax);
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(cardX + 10, 140);
+        _tft.print(dayTitle);
 
-    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-    _tft.setCursor(48, 178);
-    _tft.printf("Min: %.1f C", weather.forecast[0].tempMin);
+        // Línea divisoria interior
+        _tft.drawFastHLine(cardX + 6, 158, cardW - 12, COLOR_BORDER_CARD);
 
-    // Condición Día 1
-    _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
-    _tft.setCursor(10, 198);
-    char f1Buffer[22];
-    snprintf(f1Buffer, sizeof(f1Buffer), "%-20.20s", weather.forecast[0].conditionText);
-    _tft.print(f1Buffer);
+        // 2. Icono meteorológico en el lateral izquierdo
+        drawWeatherIcon(cardX + 22, 178, weather.forecast[i].iconType, true);
 
-    // --- Tarjeta Día +2 (Pasado Mañana) ---
-    _tft.fillRect(164, 142, 150, 74, ILI9341_BLACK);
+        // 3. Temperatura Máxima en Tamaño 2 (doble tamaño)
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+        _tft.setCursor(cardX + 44, 168);
+        _tft.print("Max");
 
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-    _tft.setCursor(168, 142);
-    _tft.printf("%s", weather.forecast[1].dayName);
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+        _tft.setCursor(cardX + 68, 164);
+        _tft.printf("%.1f C", weather.forecast[i].tempMax);
 
-    // Icono Día 2 (pequeño)
-    drawWeatherIcon(182, 172, weather.forecast[1].iconType, true);
+        // 4. Temperatura Mínima en Tamaño 2 (doble tamaño)
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(cardX + 44, 186);
+        _tft.print("Min");
 
-    // Temperaturas Día 2
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
-    _tft.setCursor(206, 164);
-    _tft.printf("Max: %.1f C", weather.forecast[1].tempMax);
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(cardX + 68, 182);
+        _tft.printf("%.1f C", weather.forecast[i].tempMin);
 
-    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-    _tft.setCursor(206, 178);
-    _tft.printf("Min: %.1f C", weather.forecast[1].tempMin);
-
-    // Condición Día 2
-    _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
-    _tft.setCursor(168, 198);
-    char f2Buffer[22];
-    snprintf(f2Buffer, sizeof(f2Buffer), "%-20.20s", weather.forecast[1].conditionText);
-    _tft.print(f2Buffer);
+        // 5. Condición del tiempo en español
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+        _tft.setCursor(cardX + 10, 204);
+        char fBuffer[24];
+        snprintf(fBuffer, sizeof(fBuffer), "%-22.22s", weather.forecast[i].conditionText);
+        _tft.print(fBuffer);
+    }
 }
 
 void DisplayUI::drawWifiIndicator(int x, int y, bool connected, int rssi) {
