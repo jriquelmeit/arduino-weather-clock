@@ -1,0 +1,51 @@
+#pragma once
+
+#include <Arduino.h>
+
+// ==========================================
+// CONFIGURACIÓN DE RED WI-FI (2.4 GHz)
+// ==========================================
+#define WIFI_SSID       "TU_RED_WIFI_2.4GHZ"
+#define WIFI_PASSWORD   "TU_PASSWORD"
+
+// ==========================================
+// PINES DE PANTALLA TFT ILI9341 (SPI)
+// ==========================================
+// Mapeo probado en Lolin NodeMCU V3:
+//   TFT_CS   -> D8 (GPIO15)
+//   TFT_DC   -> D3 (GPIO0)
+//   TFT_RST  -> D4 (GPIO2 / LED_BUILTIN)
+//   TFT_MOSI -> D7 (GPIO13 / HSPI MOSI)
+//   TFT_CLK  -> D5 (GPIO14 / HSPI SCK)
+//   TFT_MISO -> D6 (GPIO12 / Opcional)
+//   VCC      -> VIN (5V) o 3V3
+//   LED      -> 3V3
+//   GND      -> GND
+#define TFT_CS          D8
+#define TFT_DC          D3
+#define TFT_RST         D4
+#define TFT_ROTATION    3   // 3: Horizontal 320x240 (con pines arriba a la izquierda)
+
+// ==========================================
+// UBICACIÓN Y ZONA HORARIA
+// ==========================================
+#define LOCATION_NAME   "Santiago"
+#define LOCATION_LAT    "-33.4489"
+#define LOCATION_LON    "-70.6693"
+
+// Regla POSIX para cambio automático de horario:
+// Chile Continental:
+// Horario de Invierno: UTC-4 (CLT)
+// Horario de Verano:   UTC-3 (CLST), inicia 1er domingo septiembre a medianoche, termina 1er domingo abril a medianoche.
+#define TIMEZONE_RULE   "CLT4CLST,M9.1.0/0,M4.1.0/0"
+
+// Servidores NTP
+#define NTP_SERVER_1    "pool.ntp.org"
+#define NTP_SERVER_2    "time.google.com"
+
+// ==========================================
+// INTERVALOS DE ACTUALIZACIÓN
+// ==========================================
+#define CLOCK_REFRESH_INTERVAL_MS    1000UL          // 1 segundo
+#define WEATHER_REFRESH_INTERVAL_MS  (15UL * 60UL * 1000UL) // 15 minutos
+#define WEATHER_RETRY_INTERVAL_MS    (60UL * 1000UL) // 1 minuto si falla
