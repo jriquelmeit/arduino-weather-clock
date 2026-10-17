@@ -123,27 +123,19 @@ void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
         strncpy(_lastTimeStr, timeInfo.timeStr, sizeof(_lastTimeStr));
     }
 
-    // Subtítulo: Día y estado de horario
-    _tft.setTextSize(1);
+    // Subtítulo: Día de la semana
+    _tft.setTextSize(2);
     _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-    _tft.setCursor(12, 84);
-    _tft.fillRect(12, 84, 168, 10, ILI9341_BLACK);
+    _tft.setCursor(12, 86);
+    _tft.fillRect(12, 86, 168, 16, ILI9341_BLACK);
     _tft.print(timeInfo.dayName);
 
-    // Estado del cambio de horario (CLST Verano / CLT Invierno)
-    _tft.setCursor(12, 98);
-    _tft.fillRect(12, 98, 168, 10, ILI9341_BLACK);
-    if (timeInfo.isDST) {
-        _tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
-        _tft.print("Horario Verano (CLST)");
-    } else {
-        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-        _tft.print("Horario Invierno (CLT)");
-    }
-
-    _tft.setCursor(12, 114);
+    // Indicador de sincronización
+    _tft.setTextSize(1);
+    _tft.setCursor(12, 112);
     _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
-    _tft.print("NTP Auto-Sync OK");
+    _tft.fillRect(12, 112, 168, 10, ILI9341_BLACK);
+    _tft.print("NTP Sincronizado");
 }
 
 void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {
