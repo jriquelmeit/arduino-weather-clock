@@ -18,6 +18,7 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
     : _tft(cs, dc, rst), _lastRssi(-999), _lastWifiState(false) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
+    _lastDayName[0] = '\0';
 }
 
 void DisplayUI::begin(uint8_t rotation) {
@@ -93,6 +94,11 @@ void DisplayUI::drawBaseLayout(const char* locationName) {
     _tft.setCursor(12, 36);
     _tft.print("HORA LOCAL");
 
+    // Indicador estático de sincronización (se dibuja una sola vez)
+    _tft.setCursor(12, 114);
+    _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+    _tft.print("NTP Sincronizado");
+
     // 3. Tarjeta Clima Actual (Derecha superior)
     _tft.drawRoundRect(192, 30, 124, 102, 6, 0x2A6D);
     _tft.setTextSize(1);
@@ -111,31 +117,29 @@ void DisplayUI::drawBaseLayout(const char* locationName) {
 
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
+    _lastDayName[0] = '\0';
 }
 
 void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
-    // Actualización flicker-free del reloj
-    if (strncmp(_lastTimeStr, timeInfo.timeStr, sizeof(_lastTimeStr)) != 0) {
-        _tft.setTextSize(3);
+    // 1. Reloj en formato HH:MM (solo se redibuja al cambiar el minuto)
+    if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
+        _tft.fillRect(10, 48, 172, 32, ILI9341_BLACK);
+        _tft.setTextSize(4);
         _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-        _tft.setCursor(10, 52);
-        _tft.print(timeInfo.timeStr);
-        strncpy(_lastTimeStr, timeInfo.timeStr, sizeof(_lastTimeStr));
+        _tft.setCursor(24, 50);
+        _tft.print(timeInfo.shortTimeStr);
+        strncpy(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr));
     }
 
-    // Subtítulo: Día de la semana
-    _tft.setTextSize(2);
-    _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-    _tft.setCursor(12, 86);
-    _tft.fillRect(12, 86, 168, 16, ILI9341_BLACK);
-    _tft.print(timeInfo.dayName);
-
-    // Indicador de sincronización
-    _tft.setTextSize(1);
-    _tft.setCursor(12, 112);
-    _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
-    _tft.fillRect(12, 112, 168, 10, ILI9341_BLACK);
-    _tft.print("NTP Sincronizado");
+    // 2. Subtítulo: Día de la semana (SOLO se redibuja si cambia de día o al iniciar)
+    if (strncmp(_lastDayName, timeInfo.dayName, sizeof(_lastDayName)) != 0) {
+        _tft.fillRect(12, 86, 168, 18, ILI9341_BLACK);
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+        _tft.setCursor(12, 88);
+        _tft.print(timeInfo.dayName);
+        strncpy(_lastDayName, timeInfo.dayName, sizeof(_lastDayName));
+    }
 }
 
 void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {

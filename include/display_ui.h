@@ -29,6 +29,7 @@ private:
     Adafruit_ILI9341 _tft;
     char _lastTimeStr[10];
     char _lastDateStr[40];
+    char _lastDayName[16];
     int _lastRssi;
     bool _lastWifiState;
 
