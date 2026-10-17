@@ -1,18 +1,8 @@
 #include "display_ui.h"
-#include <ctype.h>
 
 #define COLOR_BG_HEADER       0x0926
 #define COLOR_BORDER_CARD     0x2145
 #define COLOR_TEXT_MUTED      0x8410
-
-static void toUpperString(const char* src, char* dst, size_t maxLen) {
-    size_t i = 0;
-    while (src && src[i] && i < maxLen - 1) {
-        dst[i] = (char)toupper((unsigned char)src[i]);
-        i++;
-    }
-    dst[i] = '\0';
-}
 
 DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
     : _tft(cs, dc, rst), _lastRssi(-999), _lastWifiState(false) {
@@ -190,14 +180,11 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         // Limpiar interior de la tarjeta
         _tft.fillRect(cardX + 2, 138, cardW - 4, 82, ILI9341_BLACK);
 
-        // 1. Título del día en Tamaño 2 (nombre exacto del día en mayúsculas)
-        char dayTitle[16];
-        toUpperString(weather.forecast[i].dayName, dayTitle, sizeof(dayTitle));
-
+        // 1. Título del día en Tamaño 2 (mismo formato que el día actual)
         _tft.setTextSize(2);
         _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
         _tft.setCursor(cardX + 10, 140);
-        _tft.print(dayTitle);
+        _tft.print(weather.forecast[i].dayName);
 
         // Línea divisoria interior
         _tft.drawFastHLine(cardX + 6, 158, cardW - 12, COLOR_BORDER_CARD);
