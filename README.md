@@ -13,6 +13,38 @@ El sistema sincroniza la hora local vía servidores NTP aplicando cambio automá
 
 ---
 
+## 🖥️ Interfaz en Pantalla (Layout 320x240)
+
+Representación gráfica de la distribución de la pantalla en modo horizontal:
+
+```text
++---------------------------------------------------------------+
+| Santiago          Sabado, 17 de Octubre               [||||]  |
++---------------------------------------------------------------+
+| +-------------------------+ +-------------------------------+ |
+| | HORA LOCAL              | | CLIMA ACTUAL                  | |
+| |                         | |                               | |
+| |      14:05              | |    \ | /       18.2 C         | |
+| |                         | |   -- O --                     | |
+| |   Sabado                | |    / | \   Humedad: 69%       | |
+| |   NTP Sincronizado      | |            Despejado          | |
+| +-------------------------+ +-------------------------------+ |
+|                                                               |
+| +-------------------------+ +-------------------------------+ |
+| | Domingo                 | | Lunes                         | |
+| |-------------------------| |-------------------------------| |
+| |    .--.    Max  23.6 C  | |   \ | /    Max  24.1 C        | |
+| |   (    )   Min  13.2 C  | |  --( O )   Min  14.4 C        | |
+| |  ' ' ' '                | |   (____)                      | |
+| | Llovizna moderada       | | Parcialmente nublado          | |
+| +-------------------------+ +-------------------------------+ |
++---------------------------------------------------------------+
+| IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
++---------------------------------------------------------------+
+```
+
+---
+
 ## Características
 
 - **Sincronización NTP y Reglas POSIX:** Obtención automática de fecha y hora local con cálculo de cambio de horario estacional (horario de verano e invierno) en el microcontrolador sin llamadas web adicionales.
