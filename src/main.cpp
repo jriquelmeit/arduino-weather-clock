@@ -9,6 +9,7 @@
 static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST);
 static WeatherService weatherService;
 static WeatherData weatherData;
+static uint8_t currentPage = DISPLAY_PAGE_MODE;
 
 // Temporizadores
 static unsigned long lastClockTick = 0;
@@ -79,14 +80,14 @@ void setup() {
     }
 
     // 4. Dibujar plantilla base en pantalla
-    ui.drawBaseLayout(LOCATION_NAME);
+    ui.drawBaseLayout(LOCATION_NAME, currentPage);
     baseLayoutDrawn = true;
 
     // 5. Carga inicial del pronóstico meteorológico si hay Wi-Fi
     if (WiFi.status() == WL_CONNECTED) {
         ui.updateStatusBar("Descargando pronostico Open-Meteo...");
-        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData)) {
-            ui.updateWeather(weatherData);
+        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
+            ui.updateWeather(weatherData, currentPage);
             initialWeatherFetched = true;
         }
     }
@@ -125,8 +126,8 @@ void loop() {
         lastWeatherAttempt = now;
 
         Serial.println(F("[Loop] Actualizando datos de clima..."));
-        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData)) {
-            ui.updateWeather(weatherData);
+        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
+            ui.updateWeather(weatherData, currentPage);
             initialWeatherFetched = true;
 
             DateTimeInfo dt;

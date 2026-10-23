@@ -82,11 +82,14 @@ WeatherIconType getWeatherIconType(int code) {
 
 WeatherService::WeatherService() {}
 
-bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData& outData) {
+bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData& outData, uint8_t hourlyStep) {
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println(F("[Clima] Error: Wi-Fi desconectado"));
         return false;
     }
+
+    if (hourlyStep < 1) hourlyStep = 1;
+    int forecastHours = (4 * hourlyStep) + 1;
 
     WiFiClient client;
     HTTPClient http;
@@ -99,8 +102,12 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     url += "&longitude=";
     url += lon;
     url += "&current=temperature_2m,relative_humidity_2m,weather_code";
-    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min";
-    url += "&timezone=auto&forecast_days=3";
+    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum";
+    url += "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation";
+    url += "&forecast_hours=";
+    url += String(forecastHours);
+    url += "&forecast_days=3";
+    url += "&timezone=auto";
 
     Serial.print(F("[Clima] Solicitando API Open-Meteo: "));
     Serial.println(url);
@@ -138,6 +145,19 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
              getWeatherDescription(outData.current.weatherCode));
     outData.current.iconType = getWeatherIconType(outData.current.weatherCode);
 
+    // Parsear pronóstico de hoy (índice 0 de daily)
+    const char* todayStr = doc["daily"]["time"][0] | "";
+    snprintf(outData.today.date, sizeof(outData.today.date), "%s", todayStr);
+    getSpanishDayFromIsoDate(todayStr, outData.today.dayName, sizeof(outData.today.dayName));
+    outData.today.tempMax = doc["daily"]["temperature_2m_max"][0] | 0.0f;
+    outData.today.tempMin = doc["daily"]["temperature_2m_min"][0] | 0.0f;
+    outData.today.weatherCode = doc["daily"]["weather_code"][0] | 0;
+    outData.today.rainProbability = doc["daily"]["precipitation_probability_max"][0] | 0;
+    outData.today.precipitation = doc["daily"]["precipitation_sum"][0] | 0.0f;
+    snprintf(outData.today.conditionText, sizeof(outData.today.conditionText), "%s",
+             getWeatherDescription(outData.today.weatherCode));
+    outData.today.iconType = getWeatherIconType(outData.today.weatherCode);
+
     // Parsear pronóstico de los dos días posteriores (índices 1 y 2 de daily)
     // Índice 0 es hoy, índice 1 es mañana, índice 2 es pasado mañana
     for (int i = 0; i < 2; i++) {
@@ -149,9 +169,31 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
         outData.forecast[i].tempMax = doc["daily"]["temperature_2m_max"][dayIndex] | 0.0f;
         outData.forecast[i].tempMin = doc["daily"]["temperature_2m_min"][dayIndex] | 0.0f;
         outData.forecast[i].weatherCode = doc["daily"]["weather_code"][dayIndex] | 0;
+        outData.forecast[i].rainProbability = doc["daily"]["precipitation_probability_max"][dayIndex] | 0;
+        outData.forecast[i].precipitation = doc["daily"]["precipitation_sum"][dayIndex] | 0.0f;
         snprintf(outData.forecast[i].conditionText, sizeof(outData.forecast[i].conditionText), "%s",
                  getWeatherDescription(outData.forecast[i].weatherCode));
         outData.forecast[i].iconType = getWeatherIconType(outData.forecast[i].weatherCode);
+    }
+
+    // Parsear pronóstico por horas (4 bloques con paso configurable)
+    for (int i = 0; i < 4; i++) {
+        int hIndex = (i + 1) * hourlyStep;
+        const char* tStr = doc["hourly"]["time"][hIndex] | "";
+        if (strlen(tStr) >= 16) {
+            // "YYYY-MM-DDTHH:MM" -> copiar "HH:MM"
+            snprintf(outData.hourly[i].timeStr, sizeof(outData.hourly[i].timeStr), "%.5s", tStr + 11);
+        } else {
+            snprintf(outData.hourly[i].timeStr, sizeof(outData.hourly[i].timeStr), "+%dh", (i + 1) * hourlyStep);
+        }
+
+        outData.hourly[i].temperature = doc["hourly"]["temperature_2m"][hIndex] | 0.0f;
+        outData.hourly[i].weatherCode = doc["hourly"]["weather_code"][hIndex] | 0;
+        outData.hourly[i].rainProbability = doc["hourly"]["precipitation_probability"][hIndex] | 0;
+        outData.hourly[i].precipitation = doc["hourly"]["precipitation"][hIndex] | 0.0f;
+        snprintf(outData.hourly[i].conditionText, sizeof(outData.hourly[i].conditionText), "%s",
+                 getWeatherDescription(outData.hourly[i].weatherCode));
+        outData.hourly[i].iconType = getWeatherIconType(outData.hourly[i].weatherCode);
     }
 
     outData.valid = true;
@@ -160,10 +202,18 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     Serial.println(F("[Clima] Datos meteorologicos actualizados con exito."));
     Serial.printf("  Actual: %.1f C, Hum: %d%%, Cond: %s\n",
                   outData.current.temperature, outData.current.humidity, outData.current.conditionText);
-    Serial.printf("  Manana (%s): Min: %.1f C, Max: %.1f C, %s\n",
-                  outData.forecast[0].dayName, outData.forecast[0].tempMin, outData.forecast[0].tempMax, outData.forecast[0].conditionText);
-    Serial.printf("  Pasado Manana (%s): Min: %.1f C, Max: %.1f C, %s\n",
-                  outData.forecast[1].dayName, outData.forecast[1].tempMin, outData.forecast[1].tempMax, outData.forecast[1].conditionText);
+    Serial.printf("  Manana (%s): Min: %.1f C, Max: %.1f C, Lluvia: %d%% (%.1fmm), %s\n",
+                  outData.forecast[0].dayName, outData.forecast[0].tempMin, outData.forecast[0].tempMax,
+                  outData.forecast[0].rainProbability, outData.forecast[0].precipitation, outData.forecast[0].conditionText);
+    Serial.printf("  Pasado Manana (%s): Min: %.1f C, Max: %.1f C, Lluvia: %d%% (%.1fmm), %s\n",
+                  outData.forecast[1].dayName, outData.forecast[1].tempMin, outData.forecast[1].tempMax,
+                  outData.forecast[1].rainProbability, outData.forecast[1].precipitation, outData.forecast[1].conditionText);
+    for (int i = 0; i < 4; i++) {
+        Serial.printf("  Horario (%s): %.1f C, Lluvia: %d%% (%.1fmm), %s\n",
+                      outData.hourly[i].timeStr, outData.hourly[i].temperature,
+                      outData.hourly[i].rainProbability, outData.hourly[i].precipitation,
+                      outData.hourly[i].conditionText);
+    }
 
     return true;
 }

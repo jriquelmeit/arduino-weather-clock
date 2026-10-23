@@ -26,6 +26,18 @@ struct DailyForecast {
     float tempMax;
     float tempMin;
     int weatherCode;
+    int rainProbability;  // Probabilidad máxima (%)
+    float precipitation;  // Precipitación acumulada (mm)
+    char conditionText[30];
+    WeatherIconType iconType;
+};
+
+struct HourlyForecast {
+    char timeStr[8];      // "HH:MM" o "+12h"
+    float temperature;
+    int weatherCode;
+    int rainProbability;  // Probabilidad por hora (%)
+    float precipitation;  // Precipitación por hora (mm)
     char conditionText[30];
     WeatherIconType iconType;
 };
@@ -34,7 +46,9 @@ struct WeatherData {
     bool valid;
     unsigned long lastFetchTime;
     CurrentWeather current;
+    DailyForecast today;       // Pronóstico del día de hoy
     DailyForecast forecast[2]; // Dos días posteriores (mañana y pasado mañana)
+    HourlyForecast hourly[4];  // Cuatro bloques horarios futuros
 };
 
 const char* getWeatherDescription(int code);
@@ -43,5 +57,5 @@ WeatherIconType getWeatherIconType(int code);
 class WeatherService {
 public:
     WeatherService();
-    bool fetchWeather(const char* lat, const char* lon, WeatherData& outData);
+    bool fetchWeather(const char* lat, const char* lon, WeatherData& outData, uint8_t hourlyStep = 1);
 };

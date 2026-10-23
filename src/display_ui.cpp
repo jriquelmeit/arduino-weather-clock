@@ -65,7 +65,7 @@ void DisplayUI::updateBootProgress(const char* stepMsg, uint8_t dots) {
     }
 }
 
-void DisplayUI::drawBaseLayout(const char* locationName) {
+void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode) {
     _tft.fillScreen(ILI9341_BLACK);
 
     // 1. Barra de Cabecera
@@ -89,20 +89,27 @@ void DisplayUI::drawBaseLayout(const char* locationName) {
     _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
     _tft.print("NTP Sincronizado");
 
-    // 3. Tarjeta Clima Actual (Derecha superior)
+    // 3. Tarjeta Clima / Pronóstico Hoy (Derecha superior)
     _tft.drawRoundRect(192, 30, 124, 102, 6, 0x2A6D);
     _tft.setTextSize(1);
     _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
     _tft.setCursor(198, 36);
-    _tft.print("CLIMA ACTUAL");
+    _tft.print("PRONOSTICO HOY");
 
-    // 4. Tarjeta Pronóstico Día 1 (Izquierda inferior)
-    _tft.drawRoundRect(4, 136, 154, 86, 6, COLOR_BORDER_CARD);
+    // 4. Tarjetas inferiores según la página seleccionada
+    if (pageMode == 2) {
+        // Página 2: 4 tarjetas para pronóstico por horas
+        for (int i = 0; i < 4; i++) {
+            int cardX = 4 + (i * 79); // 4, 83, 162, 241
+            _tft.drawRoundRect(cardX, 136, 74, 86, 6, COLOR_BORDER_CARD);
+        }
+    } else {
+        // Página 1 (por defecto): 2 tarjetas para pronóstico diario
+        _tft.drawRoundRect(4, 136, 154, 86, 6, COLOR_BORDER_CARD);
+        _tft.drawRoundRect(162, 136, 154, 86, 6, COLOR_BORDER_CARD);
+    }
 
-    // 5. Tarjeta Pronóstico Día 2 (Derecha inferior)
-    _tft.drawRoundRect(162, 136, 154, 86, 6, COLOR_BORDER_CARD);
-
-    // 6. Línea divisoria barra inferior
+    // 5. Línea divisoria barra inferior
     _tft.drawFastHLine(0, 224, 320, ILI9341_DARKGREY);
 
     _lastTimeStr[0] = '\0';
@@ -143,36 +150,56 @@ void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {
     }
 }
 
-void DisplayUI::updateWeather(const WeatherData& weather) {
+void DisplayUI::updateWeather(const WeatherData& weather, uint8_t pageMode) {
     if (!weather.valid) return;
 
-    // --- Panel Clima Actual ---
-    // Limpiar zona de temperatura y condición
-    _tft.fillRect(195, 50, 118, 78, ILI9341_BLACK);
+    // --- Panel Pronóstico Hoy (Superior Derecho) ---
+    // Limpiar zona interior
+    _tft.fillRect(195, 48, 118, 80, ILI9341_BLACK);
 
-    // Icono clima actual (tamaño regular)
-    drawWeatherIcon(214, 70, weather.current.iconType, false);
+    // 1. Icono del tiempo (tamaño regular)
+    drawWeatherIcon(214, 66, weather.current.iconType, false);
 
-    // Temperatura actual
+    // 2. Temperatura actual en Tamaño 2
     _tft.setTextSize(2);
     _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
-    _tft.setCursor(242, 62);
+    _tft.setCursor(240, 58);
     _tft.printf("%.1f C", weather.current.temperature);
 
-    // Humedad
+    // 3. Extremos de Hoy: Max y Min en Tamaño 1
     _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
-    _tft.setCursor(198, 92);
-    _tft.printf("Humedad: %d%%", weather.current.humidity);
+    _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+    _tft.setCursor(198, 86);
+    _tft.printf("Max %.1f", weather.today.tempMax);
 
-    // Condición en español
-    _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-    _tft.setCursor(198, 106);
-    char condBuffer[20];
-    snprintf(condBuffer, sizeof(condBuffer), "%-18.18s", weather.current.conditionText);
-    _tft.print(condBuffer);
+    _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+    _tft.print(" | ");
 
-    // --- Tarjetas de Pronóstico a 2 Días (Simétricas con caracteres de mayor tamaño) ---
+    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+    _tft.printf("Min %.1f", weather.today.tempMin);
+
+    // 4. Lluvia de Hoy: Gota + Probabilidad (%) + Milímetros (mm)
+    drawWaterDrop(204, 104, ILI9341_CYAN);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+    _tft.setCursor(214, 104);
+    _tft.printf("%d%%", weather.today.rainProbability);
+
+    _tft.setTextColor(weather.today.precipitation > 0.05f ? ILI9341_CYAN : ILI9341_LIGHTGREY, ILI9341_BLACK);
+    _tft.setCursor(258, 104);
+    _tft.printf("%.1f mm", weather.today.precipitation);
+
+    // --- Pronósticos según la página ---
+    if (pageMode == 2) {
+        drawHourlyForecast(weather);
+    } else {
+        drawDailyForecast(weather);
+    }
+}
+
+void DisplayUI::drawDailyForecast(const WeatherData& weather) {
+    // --- Tarjetas de Pronóstico a 2 Días ---
     for (int i = 0; i < 2; i++) {
         int cardX = (i == 0) ? 4 : 162;
         int cardW = 154;
@@ -180,7 +207,7 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         // Limpiar interior de la tarjeta
         _tft.fillRect(cardX + 2, 138, cardW - 4, 82, ILI9341_BLACK);
 
-        // 1. Título del día en Tamaño 2 (mismo formato que el día actual)
+        // 1. Título del día en Tamaño 2
         _tft.setTextSize(2);
         _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
         _tft.setCursor(cardX + 10, 140);
@@ -192,7 +219,7 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         // 2. Icono meteorológico en el lateral izquierdo
         drawWeatherIcon(cardX + 22, 178, weather.forecast[i].iconType, true);
 
-        // 3. Temperatura Máxima en Tamaño 2 (doble tamaño)
+        // 3. Temperatura Máxima en Tamaño 2
         _tft.setTextSize(1);
         _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
         _tft.setCursor(cardX + 44, 168);
@@ -203,7 +230,7 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         _tft.setCursor(cardX + 68, 164);
         _tft.printf("%.1f C", weather.forecast[i].tempMax);
 
-        // 4. Temperatura Mínima en Tamaño 2 (doble tamaño)
+        // 4. Temperatura Mínima en Tamaño 2
         _tft.setTextSize(1);
         _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
         _tft.setCursor(cardX + 44, 186);
@@ -214,14 +241,83 @@ void DisplayUI::updateWeather(const WeatherData& weather) {
         _tft.setCursor(cardX + 68, 182);
         _tft.printf("%.1f C", weather.forecast[i].tempMin);
 
-        // 5. Condición del tiempo en español
+        // 5. Probabilidad y milímetros de lluvia (Reemplaza el texto de condición)
+        drawWaterDrop(cardX + 16, 204, ILI9341_CYAN);
+
         _tft.setTextSize(1);
-        _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
-        _tft.setCursor(cardX + 10, 204);
-        char fBuffer[24];
-        snprintf(fBuffer, sizeof(fBuffer), "%-22.22s", weather.forecast[i].conditionText);
-        _tft.print(fBuffer);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(cardX + 25, 204);
+        _tft.printf("%d%%", weather.forecast[i].rainProbability);
+
+        _tft.setTextColor(weather.forecast[i].precipitation > 0.05f ? ILI9341_CYAN : ILI9341_LIGHTGREY, ILI9341_BLACK);
+        _tft.setCursor(cardX + 88, 204);
+        _tft.printf("%.1f mm", weather.forecast[i].precipitation);
     }
+}
+
+void DisplayUI::drawHourlyForecast(const WeatherData& weather) {
+    // --- 4 Tarjetas de Pronóstico por Horas ---
+    for (int i = 0; i < 4; i++) {
+        int cardX = 4 + (i * 79); // 4, 83, 162, 241
+        int cardW = 74;
+
+        // Limpiar interior de la tarjeta
+        _tft.fillRect(cardX + 2, 138, cardW - 4, 82, ILI9341_BLACK);
+
+        // 1. Hora en Tamaño 2 (centrada)
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        int timeLen = strlen(weather.hourly[i].timeStr);
+        int timeX = cardX + (cardW - (timeLen * 12)) / 2;
+        _tft.setCursor(timeX > cardX + 2 ? timeX : cardX + 4, 140);
+        _tft.print(weather.hourly[i].timeStr);
+
+        // Línea divisoria interior
+        _tft.drawFastHLine(cardX + 4, 156, cardW - 8, COLOR_BORDER_CARD);
+
+        // 2. Icono meteorológico reducido centrado
+        drawWeatherIcon(cardX + 37, 168, weather.hourly[i].iconType, true);
+
+        // 3. Temperatura en Tamaño 1 centrada
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+        char tBuf[10];
+        snprintf(tBuf, sizeof(tBuf), "%.1f C", weather.hourly[i].temperature);
+        int tLen = strlen(tBuf);
+        int tX = cardX + (cardW - (tLen * 6)) / 2;
+        _tft.setCursor(tX > cardX + 2 ? tX : cardX + 2, 182);
+        _tft.print(tBuf);
+
+        // 4. Gota + porcentaje de lluvia centrado
+        char pBuf[8];
+        snprintf(pBuf, sizeof(pBuf), "%d%%", weather.hourly[i].rainProbability);
+        int pLen = strlen(pBuf);
+        int totalW = 5 + 3 + (pLen * 6); // Ancho gota (5) + espacio (3) + texto
+        int dropX = cardX + (cardW - totalW) / 2 + 2;
+        drawWaterDrop(dropX, 195, ILI9341_CYAN);
+
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(dropX + 5, 195);
+        _tft.print(pBuf);
+
+        // 5. Milímetros de lluvia centrados
+        char mmBuf[12];
+        snprintf(mmBuf, sizeof(mmBuf), "%.1f mm", weather.hourly[i].precipitation);
+        int mmLen = strlen(mmBuf);
+        int mmX = cardX + (cardW - (mmLen * 6)) / 2;
+        _tft.setTextColor(weather.hourly[i].precipitation > 0.05f ? ILI9341_CYAN : ILI9341_LIGHTGREY, ILI9341_BLACK);
+        _tft.setCursor(mmX > cardX + 2 ? mmX : cardX + 2, 207);
+        _tft.print(mmBuf);
+    }
+}
+
+void DisplayUI::drawWaterDrop(int x, int y, uint16_t color) {
+    // Mini-gota de agua vectorial (5x7 píxeles)
+    _tft.drawPixel(x, y, color);
+    _tft.drawFastHLine(x - 1, y + 1, 3, color);
+    _tft.drawFastHLine(x - 2, y + 2, 5, color);
+    _tft.fillRect(x - 2, y + 3, 5, 3, color);
+    _tft.drawFastHLine(x - 1, y + 6, 3, color);
 }
 
 void DisplayUI::drawWifiIndicator(int x, int y, bool connected, int rssi) {

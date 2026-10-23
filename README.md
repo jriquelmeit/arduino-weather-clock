@@ -18,16 +18,17 @@ El sistema sincroniza la hora local vía servidores NTP aplicando cambio automá
 Representación gráfica de la distribución de la pantalla en modo horizontal:
 
 ```text
+Página 1 (Modo Diario - DISPLAY_PAGE_MODE = 1):
 +---------------------------------------------------------------+
 | Santiago          Sabado, 17 de Octubre               [||||]  |
 +---------------------------------------------------------------+
 | +-------------------------+ +-------------------------------+ |
-| | HORA LOCAL              | | CLIMA ACTUAL                  | |
+| | HORA LOCAL              | | PRONOSTICO HOY                | |
 | |                         | |                               | |
 | |      14:05              | |    \ | /       18.2 C         | |
 | |                         | |   -- O --                     | |
-| |   Sabado                | |    / | \   Humedad: 69%       | |
-| |   NTP Sincronizado      | |            Despejado          | |
+| |   Sabado                | |    / | \   Max 22.5 | Min 12.0| |
+| |   NTP Sincronizado      | |   [💧] 80%         3.5 mm     | |
 | +-------------------------+ +-------------------------------+ |
 |                                                               |
 | +-------------------------+ +-------------------------------+ |
@@ -36,8 +37,32 @@ Representación gráfica de la distribución de la pantalla en modo horizontal:
 | |    .--.    Max  23.6 C  | |   \ | /    Max  24.1 C        | |
 | |   (    )   Min  13.2 C  | |  --( O )   Min  14.4 C        | |
 | |  ' ' ' '                | |   (____)                      | |
-| | Llovizna moderada       | | Parcialmente nublado          | |
+| |  [💧] 85%       4.2 mm  | |  [💧] 10%       0.0 mm        | |
 | +-------------------------+ +-------------------------------+ |
++---------------------------------------------------------------+
+| IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
++---------------------------------------------------------------+
+
+Página 2 (Modo Horario - DISPLAY_PAGE_MODE = 2):
++---------------------------------------------------------------+
+| Santiago          Sabado, 17 de Octubre               [||||]  |
++---------------------------------------------------------------+
+| +-------------------------+ +-------------------------------+ |
+| | HORA LOCAL              | | PRONOSTICO HOY                | |
+| |      14:05              | |    \ | /       18.2 C         | |
+| |   Sabado                | |    / | \   Max 22.5 | Min 12.0| |
+| |   NTP Sincronizado      | |   [💧] 80%         3.5 mm     | |
+| +-------------------------+ +-------------------------------+ |
+|                                                               |
+| +------------+ +------------+ +------------+ +------------+   |
+| |   16:00    | |   18:00    | |   20:00    | |   22:00    |   |
+| |------------| |------------| |------------| |------------|   |
+| |   \ | /    | |   (____)   | |    .--.    | |    .--.    |   |
+| |   19.5 C   | |   17.2 C   | |  ' ' ' '   | |  ' ' ' '   |   |
+| |            | |            | |   15.0 C   | |   13.4 C   |   |
+| |   [💧] 15% | |   [💧] 40% | |   [💧] 75% | |   [💧] 90% |   |
+| |   0.0 mm   | |   0.4 mm   | |   1.8 mm   | |   3.2 mm   |   |
+| +------------+ +------------+ +------------+ +------------+   |
 +---------------------------------------------------------------+
 | IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
 +---------------------------------------------------------------+
@@ -125,6 +150,14 @@ Edita `include/config.h` con los datos de tu red y coordenadas geográficas:
 
 // Regla POSIX de Zona Horaria (cambio automático de horario)
 #define TIMEZONE_RULE   "CLT4CLST,M9.1.0/0,M4.1.0/0"
+
+// Modo de Pantalla (Página activa)
+// 1: Página 1 - Pronóstico diario a 2 días (Por defecto)
+// 2: Página 2 - Pronóstico por horas (4 bloques)
+#define DISPLAY_PAGE_MODE      1
+
+// Intervalo entre pronósticos para la Página 2 (1, 2, 3 o n horas)
+#define HOURLY_FORECAST_STEP   2
 ```
 
 > [!IMPORTANT]
