@@ -22,10 +22,7 @@ private:
 
     unsigned long _alarmStartTime;
     unsigned long _alarmMaxDuration;
-    unsigned long _lastToggleTime;
+    unsigned long _stepEndTime;
     unsigned long _beepEndTime;
-
-    // Patrón de alarma: alternar ON/OFF
-    static const unsigned long ALARM_BEEP_ON_MS = 150;
-    static const unsigned long ALARM_BEEP_OFF_MS = 150;
+    uint8_t _rhythmIndex;
 };
