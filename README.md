@@ -121,28 +121,63 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
 | **Botón 3 (Action)** | Terminal A / GND | **D6** | GPIO12 | `INPUT_PULLUP` - Ajuste timer / Sleep / Silenciar |
 | **Buzzer** | Señal / (+) / GND | **D0** | GPIO16 | `OUTPUT` - Alarma de temporizador |
 
-```text
-                                Lolin NodeMCU V3 (ESP8266)
-                               +--------------------------+
-  [ Pulsador 1: Ant/Prev ] ----| D1 (GPIO5)               |
-  [ Pulsador 2: Sig/Next ] ----| D2 (GPIO4)           VIN |---> Alimentación 5V / VCC TFT
-  [ Pulsador 3: Acción   ] ----| D6 (GPIO12)          GND |---> GND Común (Botones, Buzzer, TFT)
-  [ Buzzer (+) / Señal   ] ----| D0 (GPIO16)          3V3 |---> TFT LED Backlight (si no se usa transistor)
-                               | D8 (GPIO15)              |---> TFT CS
-                               | D4 (GPIO2)               |---> TFT RST
-                               | D3 (GPIO0)               |---> TFT DC
-                               | D7 (GPIO13)              |---> TFT MOSI (SDI)
-                               | D5 (GPIO14)              |---> TFT CLK (SCK)
-                               | RX (GPIO3)               |---> Base Transistor NPN (Opcional - Backlight)
-                               +--------------------------+
+### Diagrama Esquemático Completo de Conexiones
 
-  * Cada pulsador se conecta directamente entre su pin (D1, D2, D6) y GND Común (usa pull-up interno).
-  * El buzzer se conecta entre D0 y GND Común (o VCC/GND + señal a D0 si es módulo).
+```text
+                                 DIAGRAMA COMPLETO DE CONEXIONES
+                                =================================
+
+     BOTONES Y BUZZER                     LOLIN NODEMCU V3 (ESP8266)                   PANTALLA TFT ILI9341 2.8"
+  +---------------------+               +----------------------------+                +-------------------------+
+  |                     |               |                            |                |                         |
+  | [Pulsador 1: Prev]  +---------------+ D1 (GPIO5)             VIN +----------------+ VCC (VIN / 5V)          |
+  |   (Terminal a GND)  |               |                            |                |                         |
+  |                     |               |                            |                |                         |
+  | [Pulsador 2: Next]  +---------------+ D2 (GPIO4)             GND +--------+-------+ GND                     |
+  |   (Terminal a GND)  |               |                            |        |       |                         |
+  |                     |               |                            |        |       |                         |
+  | [Pulsador 3: Act]   +---------------+ D6 (GPIO12)            D8  +--------|-------+ CS                      |
+  |   (Terminal a GND)  |               |                            |        |       |                         |
+  |                     |               |                            |        |       |                         |
+  | [BUZZER Activo]     |               |                        D4  +--------|-------+ RESET / RST             |
+  |   Pin (+) / Señal   +---------------+ D0 (GPIO16)                |        |       |                         |
+  |   Pin (-) a GND     |               |                        D3  +--------|-------+ DC / RS                 |
+  +---------------------+               |                            |        |       |                         |
+                                        |                        D7  +--------|-------+ SDI (MOSI)              |
+                                        |                            |        |       |                         |
+                                        |                        D5  +--------|-------+ SCK (CLK)               |
+                                        |                            |        |       |                         |
+                                        |                        3V3 +----+---|-------+ LED (Opción Directa)*   |
+                                        |                            |    |   |       |                         |
+                                        |                   RX (GPIO3)+-+ |   |       | SDO (MISO) [DESCONECTAR]|
+                                        +----------------------------+  | |   |       +-------------------------+
+                                                                        | |   |
+                         CIRCUITO CON TRANSISTOR NPN (OPCIÓN 100% NEGRO)| |   |
+                        +-----------------------------------------------+ |   |
+                        |                                               | |   |
+                        |   Pin RX (GPIO3) ----[ Resistencia 1k ]       | |   |
+                        |                               |               | |   |
+                        |                            (Base)             | |   |
+                        |                             /                 | |   |
+                        |        GND (Emisor) +------|<  2N2222 (NPN)   | |   |
+                        |                     |       \                 | |   |
+                        |                     |      (Colector)         | |   |
+                        |                     |         +---------------+--+  |
+                        |                     +---------|---------------+-----+ (A GND Común)
+                        |                               +-------------------> (Al pin LED de la TFT)*
+                        +-----------------------------------------------+
+
+  * NOTA DE RETROILUMINACIÓN (LED):
+    - Opción A (Sin transistor): Conectar pin LED de la pantalla directo a 3V3 del NodeMCU.
+    - Opción B (Con transistor 2N2222): Conectar pin LED al Colector del transistor para apagado 100% negro en Sleep.
+  * NOTA DE PINES NO USADOS:
+    - SDO (MISO) de la pantalla debe quedar DESCONECTADO (al aire) para no interferir con el pulsador D6.
+    - Los pines táctiles (T_CLK, T_CS, T_DIN, T_DO, T_IRQ) y lector SD quedan desconectados.
 ```
 
 ### Control de Retroiluminación por Transistor (Apagado 100% Negro)
 
-Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sleep apaga los píxeles pero la luz de fondo permanece encendida (pantalla blanca). Para lograr un **apagado 100% en negro total**, se puede intercalar un transistor NPN (ej. **2N2222**, **2N3904** o **BC547**):
+Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sleep apaga los píxeles pero la luz de fondo permanece encendida (pantalla blanca). Para lograr un **apagado 100% en negro total**, se intercala un transistor NPN (ej. **2N2222**, **2N3904** o **BC547**):
 
 ```text
        NodeMCU ESP8266                                 Pantalla TFT
@@ -158,6 +193,14 @@ Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sl
       |                |     |                        |            |
       |          GND --+-----+----------------------> | GND        |
       +----------------+  (Emisor)                    +------------+
+
+       Pinout Transistor 2N2222 / 2N3904 (TO-92):
+           +---------------+
+           |   ( ) ( ) ( ) |  (Parte plana con serigrafía de frente)
+           +---------------+
+             1     2     3
+             E     B     C
+         (Emisor) (Base) (Colector)
 ```
 
 > [!NOTE]
