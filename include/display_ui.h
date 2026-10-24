@@ -22,7 +22,8 @@ public:
     void updateBootProgress(const char* stepMsg, uint8_t dots);
 
     // Dibuja la estructura base fija (marcos, cabecera, etiquetas estáticas)
-    void drawBaseLayout(const char* locationName, uint8_t pageMode = 1);
+    // fullRedraw = true redibuja toda la pantalla; false solo redibuja la zona central de contenido
+    void drawBaseLayout(const char* locationName, uint8_t pageMode = 1, bool fullRedraw = true);
 
     // Métodos de actualización dinámica (flicker-free)
     void updateTime(const DateTimeInfo& timeInfo);

@@ -1,9 +1,10 @@
 #include "input_controller.h"
 
-InputButton::InputButton(uint8_t pin, unsigned long debounceMs, unsigned long longPressMs)
+InputButton::InputButton(uint8_t pin, unsigned long debounceMs, unsigned long longPressMs, bool triggerOnPress)
     : _pin(pin),
       _debounceMs(debounceMs),
       _longPressMs(longPressMs),
+      _triggerOnPress(triggerOnPress),
       _lastPhysicalState(HIGH),
       _debouncedState(HIGH),
       _lastDebounceTime(0),
@@ -39,11 +40,14 @@ ButtonEvent InputButton::update() {
                 _isPressed = true;
                 _pressStartTime = now;
                 _longPressTriggered = false;
+                if (_triggerOnPress) {
+                    event = BTN_EVENT_SHORT_CLICK;
+                }
             } else {
                 // Transición a liberado (HIGH)
                 if (_isPressed) {
                     _isPressed = false;
-                    if (!_longPressTriggered && (now - _pressStartTime < _longPressMs)) {
+                    if (!_triggerOnPress && !_longPressTriggered && (now - _pressStartTime < _longPressMs)) {
                         event = BTN_EVENT_SHORT_CLICK;
                     }
                 }
@@ -52,7 +56,7 @@ ButtonEvent InputButton::update() {
     }
 
     // Detección de pulsación sostenida (long press) mientras sigue presionado
-    if (_isPressed && !_longPressTriggered) {
+    if (!_triggerOnPress && _isPressed && !_longPressTriggered) {
         if ((now - _pressStartTime) >= _longPressMs) {
             _longPressTriggered = true;
             event = BTN_EVENT_LONG_PRESS;
@@ -63,9 +67,9 @@ ButtonEvent InputButton::update() {
 }
 
 InputController::InputController(uint8_t pinPrev, uint8_t pinNext, uint8_t pinAction, unsigned long longPressMs)
-    : _btnPrev(pinPrev, 40, longPressMs),
-      _btnNext(pinNext, 40, longPressMs),
-      _btnAction(pinAction, 40, longPressMs) {}
+    : _btnPrev(pinPrev, 25, longPressMs, true),
+      _btnNext(pinNext, 25, longPressMs, true),
+      _btnAction(pinAction, 30, longPressMs, false) {}
 
 void InputController::begin() {
     _btnPrev.begin();

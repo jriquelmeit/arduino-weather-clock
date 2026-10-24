@@ -33,13 +33,15 @@ static unsigned long lastWeatherAttempt = 0;
 static unsigned long lastWifiStatusCheck = 0;
 static bool initialWeatherFetched = false;
 
-void switchPage(uint8_t newPage) {
+void switchPage(uint8_t newPage, bool fullRedraw = false) {
     currentPage = newPage;
-    ui.drawBaseLayout(LOCATION_NAME, currentPage);
+    ui.drawBaseLayout(LOCATION_NAME, currentPage, fullRedraw);
 
     DateTimeInfo dt;
     if (getCurrentDateTime(dt)) {
-        ui.updateDate(dt);
+        if (fullRedraw) {
+            ui.updateDate(dt);
+        }
         if (currentPage != 3) {
             ui.updateTime(dt);
         }
@@ -53,7 +55,9 @@ void switchPage(uint8_t newPage) {
         }
     }
 
-    ui.updateWifiStatus(WiFi.status() == WL_CONNECTED, WiFi.RSSI(), WiFi.localIP());
+    if (fullRedraw) {
+        ui.updateWifiStatus(WiFi.status() == WL_CONNECTED, WiFi.RSSI(), WiFi.localIP());
+    }
 }
 
 void handleNightMode(const DateTimeInfo& dt) {
@@ -85,7 +89,7 @@ void handleNightMode(const DateTimeInfo& dt) {
         manualWakeActive = false;
         if (ui.isSleeping()) {
             ui.wakeDisplay();
-            switchPage(currentPage);
+            switchPage(currentPage, true);
         }
     }
 }
@@ -101,10 +105,13 @@ void connectWiFi() {
     uint8_t dots = 0;
     unsigned long startAttempt = millis();
 
-    while (WiFi.status() != WL_CONNECTED && (millis() - startAttempt < 20000)) {
-        delay(400);
+    while (WiFi.status() != WL_CONNECTED && (millis() - startAttempt < 15000)) {
+        delay(100);
         Serial.print(F("."));
-        ui.updateBootProgress("Esperando conexion", dots++);
+        if ((dots % 4) == 0) {
+            ui.updateBootProgress("Esperando conexion", dots / 4);
+        }
+        dots++;
     }
 
     if (WiFi.status() == WL_CONNECTED) {
@@ -120,7 +127,7 @@ void connectWiFi() {
 
 void setup() {
     Serial.begin(115200);
-    delay(200);
+    delay(100);
 
     Serial.println(F("\n=============================================="));
     Serial.println(F("   ESP8266 Weather Clock - TFT ILI9341 SPI   "));
@@ -143,9 +150,12 @@ void setup() {
 
     unsigned long ntpWait = millis();
     uint8_t step = 0;
-    while (!isTimeSynchronized() && (millis() - ntpWait < 6000)) {
-        delay(300);
-        ui.updateBootProgress("Sincronizando hora NTP", step++);
+    while (!isTimeSynchronized() && (millis() - ntpWait < 4000)) {
+        delay(100);
+        if ((step % 3) == 0) {
+            ui.updateBootProgress("Sincronizando hora NTP", step / 3);
+        }
+        step++;
     }
 
     if (isTimeSynchronized()) {
@@ -154,8 +164,8 @@ void setup() {
         Serial.println(F("[NTP] Esperando respuesta de servidor de tiempo..."));
     }
 
-    // 5. Dibujar plantilla inicial
-    switchPage(currentPage);
+    // 5. Dibujar plantilla inicial (redibujado completo)
+    switchPage(currentPage, true);
 
     // 6. Carga inicial del pronóstico meteorológico si hay Wi-Fi
     if (WiFi.status() == WL_CONNECTED) {
@@ -189,7 +199,7 @@ void loop() {
     // Si la pantalla estaba apagada y se pulsa cualquier botón, despertar
     if (anyButtonActivity && ui.isSleeping()) {
         ui.wakeDisplay();
-        switchPage(currentPage);
+        switchPage(currentPage, true);
         manualWakeActive = true;
         manualWakeTime = now;
         if (BUZZER_KEY_BEEP) buzzer.beep(30);
@@ -213,7 +223,7 @@ void loop() {
         Serial.println(F("[BTN] Siguiente (Next)"));
         if (BUZZER_KEY_BEEP) buzzer.beep(25);
         uint8_t nextPage = (currentPage >= 3) ? 1 : (currentPage + 1);
-        switchPage(nextPage);
+        switchPage(nextPage, false);
     }
 
     // Botón Anterior (Retroceder página 1 -> 3 -> 2 -> 1)
@@ -221,7 +231,7 @@ void loop() {
         Serial.println(F("[BTN] Anterior (Prev)"));
         if (BUZZER_KEY_BEEP) buzzer.beep(25);
         uint8_t prevPage = (currentPage <= 1) ? 3 : (currentPage - 1);
-        switchPage(prevPage);
+        switchPage(prevPage, false);
     }
 
     // Botón Acción
@@ -294,7 +304,7 @@ void loop() {
 
                 // Si no estaba en página 3, cambiar a página 3 para mostrar alarma
                 if (currentPage != 3) {
-                    switchPage(3);
+                    switchPage(3, false);
                 } else {
                     ui.updateTimer(0, timerTotalSec, timerState, true);
                 }
@@ -379,5 +389,5 @@ void loop() {
     }
 
     // Permitir ejecución suave de las tareas del ESP8266 (Wi-Fi, TCP, watchdog)
-    delay(10);
+    delay(5);
 }

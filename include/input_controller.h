@@ -10,7 +10,7 @@ enum ButtonEvent {
 
 class InputButton {
 public:
-    InputButton(uint8_t pin, unsigned long debounceMs = 40, unsigned long longPressMs = 1000);
+    InputButton(uint8_t pin, unsigned long debounceMs = 25, unsigned long longPressMs = 1000, bool triggerOnPress = false);
     void begin();
     ButtonEvent update();
 
@@ -18,6 +18,7 @@ private:
     uint8_t _pin;
     unsigned long _debounceMs;
     unsigned long _longPressMs;
+    bool _triggerOnPress;
 
     bool _lastPhysicalState;
     bool _debouncedState;

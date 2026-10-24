@@ -18,7 +18,7 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
 }
 
 void DisplayUI::begin(uint8_t rotation) {
-    _tft.begin();
+    _tft.begin(40000000); // 40 MHz SPI para máxima fluidez
     _tft.setRotation(rotation);
     _tft.fillScreen(ILI9341_BLACK);
 }
@@ -71,17 +71,30 @@ void DisplayUI::updateBootProgress(const char* stepMsg, uint8_t dots) {
     }
 }
 
-void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode) {
-    _tft.fillScreen(ILI9341_BLACK);
+void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool fullRedraw) {
+    if (fullRedraw) {
+        _tft.fillScreen(ILI9341_BLACK);
 
-    // 1. Barra de Cabecera
-    _tft.fillRect(0, 0, 320, 26, COLOR_BG_HEADER);
-    _tft.drawFastHLine(0, 26, 320, ILI9341_CYAN);
+        // 1. Barra de Cabecera
+        _tft.fillRect(0, 0, 320, 26, COLOR_BG_HEADER);
+        _tft.drawFastHLine(0, 26, 320, ILI9341_CYAN);
 
-    _tft.setTextSize(2);
-    _tft.setTextColor(ILI9341_CYAN, COLOR_BG_HEADER);
-    _tft.setCursor(8, 6);
-    _tft.print(locationName);
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_CYAN, COLOR_BG_HEADER);
+        _tft.setCursor(8, 6);
+        _tft.print(locationName);
+
+        // 5. Línea divisoria barra inferior
+        _tft.drawFastHLine(0, 224, 320, ILI9341_DARKGREY);
+
+        _lastDateStr[0] = '\0';
+        _lastRssi = -999;
+        _lastWifiState = false;
+    } else {
+        // Redibujado rápido: solo borrar la zona central de contenido (Y: 27 a 223)
+        // La cabecera superior y la barra inferior permanecen intactas (sin parpadeo)
+        _tft.fillRect(0, 27, 320, 197, ILI9341_BLACK);
+    }
 
     if (pageMode == 3) {
         // Página 3: Tarjeta grande central para Temporizador
@@ -124,11 +137,7 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode) {
         }
     }
 
-    // 5. Línea divisoria barra inferior
-    _tft.drawFastHLine(0, 224, 320, ILI9341_DARKGREY);
-
     _lastTimeStr[0] = '\0';
-    _lastDateStr[0] = '\0';
     _lastDayName[0] = '\0';
     _lastTimerStr[0] = '\0';
     _lastTimerState = (TimerDisplayState)-1;
