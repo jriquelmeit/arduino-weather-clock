@@ -55,6 +55,7 @@
 // ==========================================
 // 1: Página 1 (Por defecto) - Reloj + Clima actual + Pronóstico 2 días
 // 2: Página 2               - Reloj + Clima actual + Pronóstico próximas horas
+// 3: Página 3               - Temporizador / Timer
 #define DISPLAY_PAGE_MODE            1
 
 // Para Página 2 (Pronóstico por horas): intervalo de horas entre predicciones
@@ -62,3 +63,31 @@
 // 2 = cada 2 horas (+2h, +4h, +6h, +8h)
 // 3 = cada 3 horas (+3h, +6h, +9h, +12h)
 #define HOURLY_FORECAST_STEP         2
+
+// ==========================================
+// PINES DE BOTONES Y BUZZER
+// ==========================================
+// Conexión a GND directo (usan INPUT_PULLUP interno)
+#define PIN_BTN_PREV                 D1    // GPIO5 - Página anterior
+#define PIN_BTN_NEXT                 D2    // GPIO4 - Página siguiente
+#define PIN_BTN_ACTION               D6    // GPIO12 - Botón Acción / Timer / Sleep (SDO/MISO del TFT debe estar desconectado)
+#define PIN_BUZZER                   D0    // GPIO16 - Buzzer de alarma
+#define BUZZER_KEY_BEEP              false // true: beep al pulsar botones | false: solo alarma de temporizador
+
+// ==========================================
+// CONFIGURACIÓN DEL TEMPORIZADOR (PÁGINA 3)
+// ==========================================
+#define TIMER_DEFAULT_MINUTES        5
+#define TIMER_MIN_MINUTES            5
+#define TIMER_MAX_MINUTES            60
+#define TIMER_STEP_MINUTES           5
+#define TIMER_LONG_PRESS_MS          1000UL  // Tiempo para confirmar e iniciar (1s)
+#define TIMER_ALARM_DURATION_MS      30000UL // Duración máxima alarma buzzer (30s)
+
+// ==========================================
+// MODO NOCHE / APAGADO DE PANTALLA PROGRAMADO
+// ==========================================
+#define NIGHT_MODE_ENABLED           false   // true para activar apagado nocturno automático
+#define NIGHT_MODE_START_HOUR        23      // 23:00 (11 PM)
+#define NIGHT_MODE_END_HOUR          7       // 07:00 (7 AM)
+#define NIGHT_MODE_WAKE_TIMEOUT_MS   30000UL // Tiempo que permanece encendida si se despierta de noche

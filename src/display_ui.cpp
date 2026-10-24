@@ -5,10 +5,16 @@
 #define COLOR_TEXT_MUTED      0x8410
 
 DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
-    : _tft(cs, dc, rst), _lastRssi(-999), _lastWifiState(false) {
+    : _tft(cs, dc, rst),
+      _lastTimerState((TimerDisplayState)-1),
+      _lastProgressBarWidth(-1),
+      _lastRssi(-999),
+      _lastWifiState(false),
+      _isSleeping(false) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
     _lastDayName[0] = '\0';
+    _lastTimerStr[0] = '\0';
 }
 
 void DisplayUI::begin(uint8_t rotation) {
@@ -77,36 +83,45 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode) {
     _tft.setCursor(8, 6);
     _tft.print(locationName);
 
-    // 2. Tarjeta Reloj Digital (Izquierda superior)
-    _tft.drawRoundRect(4, 30, 184, 102, 6, ILI9341_DARKGREY);
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
-    _tft.setCursor(12, 36);
-    _tft.print("HORA LOCAL");
-
-    // Indicador estático de sincronización (se dibuja una sola vez)
-    _tft.setCursor(12, 114);
-    _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
-    _tft.print("NTP Sincronizado");
-
-    // 3. Tarjeta Clima / Pronóstico Hoy (Derecha superior)
-    _tft.drawRoundRect(192, 30, 124, 102, 6, 0x2A6D);
-    _tft.setTextSize(1);
-    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
-    _tft.setCursor(198, 36);
-    _tft.print("PRONOSTICO HOY");
-
-    // 4. Tarjetas inferiores según la página seleccionada
-    if (pageMode == 2) {
-        // Página 2: 4 tarjetas para pronóstico por horas
-        for (int i = 0; i < 4; i++) {
-            int cardX = 4 + (i * 79); // 4, 83, 162, 241
-            _tft.drawRoundRect(cardX, 136, 74, 86, 6, COLOR_BORDER_CARD);
-        }
+    if (pageMode == 3) {
+        // Página 3: Tarjeta grande central para Temporizador
+        _tft.drawRoundRect(4, 30, 312, 190, 8, ILI9341_DARKCYAN);
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(14, 38);
+        _tft.print("TEMPORIZADOR");
     } else {
-        // Página 1 (por defecto): 2 tarjetas para pronóstico diario
-        _tft.drawRoundRect(4, 136, 154, 86, 6, COLOR_BORDER_CARD);
-        _tft.drawRoundRect(162, 136, 154, 86, 6, COLOR_BORDER_CARD);
+        // 2. Tarjeta Reloj Digital (Izquierda superior)
+        _tft.drawRoundRect(4, 30, 184, 102, 6, ILI9341_DARKGREY);
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+        _tft.setCursor(12, 36);
+        _tft.print("HORA LOCAL");
+
+        // Indicador estático de sincronización (se dibuja una sola vez)
+        _tft.setCursor(12, 114);
+        _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+        _tft.print("NTP Sincronizado");
+
+        // 3. Tarjeta Clima / Pronóstico Hoy (Derecha superior)
+        _tft.drawRoundRect(192, 30, 124, 102, 6, 0x2A6D);
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(198, 36);
+        _tft.print("PRONOSTICO HOY");
+
+        // 4. Tarjetas inferiores según la página seleccionada
+        if (pageMode == 2) {
+            // Página 2: 4 tarjetas para pronóstico por horas
+            for (int i = 0; i < 4; i++) {
+                int cardX = 4 + (i * 79); // 4, 83, 162, 241
+                _tft.drawRoundRect(cardX, 136, 74, 86, 6, COLOR_BORDER_CARD);
+            }
+        } else {
+            // Página 1 (por defecto): 2 tarjetas para pronóstico diario
+            _tft.drawRoundRect(4, 136, 154, 86, 6, COLOR_BORDER_CARD);
+            _tft.drawRoundRect(162, 136, 154, 86, 6, COLOR_BORDER_CARD);
+        }
     }
 
     // 5. Línea divisoria barra inferior
@@ -115,9 +130,14 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
     _lastDayName[0] = '\0';
+    _lastTimerStr[0] = '\0';
+    _lastTimerState = (TimerDisplayState)-1;
+    _lastProgressBarWidth = -1;
 }
 
 void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
+    if (_isSleeping) return;
+
     // 1. Reloj en formato HH:MM (solo se redibuja al cambiar el minuto)
     if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
         _tft.fillRect(10, 48, 172, 32, ILI9341_BLACK);
@@ -140,6 +160,8 @@ void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
 }
 
 void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {
+    if (_isSleeping) return;
+
     if (strncmp(_lastDateStr, timeInfo.dateStr, sizeof(_lastDateStr)) != 0) {
         _tft.fillRect(110, 8, 175, 12, COLOR_BG_HEADER);
         _tft.setTextSize(1);
@@ -151,7 +173,7 @@ void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {
 }
 
 void DisplayUI::updateWeather(const WeatherData& weather, uint8_t pageMode) {
-    if (!weather.valid) return;
+    if (!weather.valid || _isSleeping || pageMode == 3) return;
 
     // --- Panel Pronóstico Hoy (Superior Derecho) ---
     // Limpiar zona interior
@@ -351,6 +373,7 @@ void DisplayUI::drawWifiIndicator(int x, int y, bool connected, int rssi) {
 }
 
 void DisplayUI::updateWifiStatus(bool connected, int rssi, const IPAddress& ip) {
+    if (_isSleeping) return;
     if (connected != _lastWifiState || abs(rssi - _lastRssi) > 4) {
         drawWifiIndicator(298, 7, connected, rssi);
         _lastWifiState = connected;
@@ -359,6 +382,7 @@ void DisplayUI::updateWifiStatus(bool connected, int rssi, const IPAddress& ip) 
 }
 
 void DisplayUI::updateStatusBar(const char* message) {
+    if (_isSleeping) return;
     _tft.fillRect(0, 226, 320, 14, ILI9341_BLACK);
     _tft.setTextSize(1);
     _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
@@ -439,4 +463,110 @@ void DisplayUI::drawWeatherIcon(int x, int y, WeatherIconType type, bool small) 
             _tft.drawPixel(x, y, ILI9341_WHITE);
             break;
     }
+}
+
+void DisplayUI::updateTimer(uint16_t remainingSec, uint16_t totalSec, TimerDisplayState state, bool forceRedraw) {
+    if (_isSleeping) return;
+
+    // 1. Formatear tiempo en MM:SS
+    char timerStr[10];
+    uint16_t mins = remainingSec / 60;
+    uint16_t secs = remainingSec % 60;
+    snprintf(timerStr, sizeof(timerStr), "%02u:%02u", mins, secs);
+
+    // 2. Redibujar dígitos solo si cambiaron o forceRedraw
+    if (forceRedraw || strncmp(_lastTimerStr, timerStr, sizeof(_lastTimerStr)) != 0 || state != _lastTimerState) {
+        _tft.fillRect(40, 56, 240, 52, ILI9341_BLACK);
+        _tft.setTextSize(6);
+        if (state == TIMER_UI_RUNNING) {
+            _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+        } else if (state == TIMER_UI_ALARM) {
+            _tft.setTextColor(ILI9341_RED, ILI9341_BLACK);
+        } else {
+            _tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
+        }
+        _tft.setCursor(70, 60);
+        _tft.print(timerStr);
+        strncpy(_lastTimerStr, timerStr, sizeof(_lastTimerStr));
+    }
+
+    // 3. Barra de progreso (X: 30, Y: 122, W: 260, H: 14)
+    if (forceRedraw) {
+        _tft.drawRoundRect(28, 120, 264, 18, 4, ILI9341_WHITE);
+        _lastProgressBarWidth = -1;
+    }
+
+    int currentBarWidth = 0;
+    if (totalSec > 0) {
+        currentBarWidth = (remainingSec * 260) / totalSec;
+        if (currentBarWidth > 260) currentBarWidth = 260;
+    }
+
+    if (forceRedraw || currentBarWidth != _lastProgressBarWidth) {
+        uint16_t barColor = (state == TIMER_UI_ALARM) ? ILI9341_RED : ILI9341_CYAN;
+        if (currentBarWidth > 0) {
+            _tft.fillRect(30, 122, currentBarWidth, 14, barColor);
+        }
+        if (currentBarWidth < 260) {
+            _tft.fillRect(30 + currentBarWidth, 122, 260 - currentBarWidth, 14, ILI9341_BLACK);
+        }
+        _lastProgressBarWidth = currentBarWidth;
+    }
+
+    // 4. Textos de estado y ayuda según máquina de estados
+    if (forceRedraw || state != _lastTimerState) {
+        _tft.fillRect(10, 150, 300, 68, ILI9341_BLACK);
+
+        if (state == TIMER_UI_IDLE) {
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+            _tft.setCursor(95, 156);
+            _tft.print("MODO AJUSTE");
+
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+            _tft.setCursor(45, 188);
+            _tft.print("Btn 3: +5 min  |  Mantener: INICIAR");
+        } else if (state == TIMER_UI_RUNNING) {
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
+            _tft.setCursor(105, 156);
+            _tft.print("EN CONTEO");
+
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+            _tft.setCursor(55, 188);
+            _tft.print("Presione Btn 3 para DETENER");
+        } else if (state == TIMER_UI_ALARM) {
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_RED, ILI9341_BLACK);
+            _tft.setCursor(45, 156);
+            _tft.print("!TIEMPO FINALIZADO!");
+
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
+            _tft.setCursor(55, 188);
+            _tft.print("Presione Btn 3 para SILENCIAR");
+        }
+        _lastTimerState = state;
+    }
+}
+
+void DisplayUI::sleepDisplay() {
+    if (_isSleeping) return;
+    _tft.sendCommand(ILI9341_DISPOFF);
+    _tft.sendCommand(ILI9341_SLPIN);
+    _isSleeping = true;
+}
+
+void DisplayUI::wakeDisplay() {
+    if (!_isSleeping) return;
+    _tft.sendCommand(ILI9341_SLPOUT);
+    delay(120);
+    _tft.sendCommand(ILI9341_DISPON);
+    _isSleeping = false;
+}
+
+bool DisplayUI::isSleeping() const {
+    return _isSleeping;
 }

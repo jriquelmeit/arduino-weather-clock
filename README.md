@@ -66,12 +66,33 @@ Página 2 (Modo Horario - DISPLAY_PAGE_MODE = 2):
 +---------------------------------------------------------------+
 | IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
 +---------------------------------------------------------------+
+
+Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
++---------------------------------------------------------------+
+| Santiago          Sabado, 17 de Octubre               [||||]  |
++---------------------------------------------------------------+
+| +-----------------------------------------------------------+ |
+| | TEMPORIZADOR                                              | |
+| |                                                           | |
+| |                       15:00                               | |
+| |                                                           | |
+| |          [======== PROGRESO RESTANTE ========]            | |
+| |                                                           | |
+| |    MODO AJUSTE                                            | |
+| |    Btn 3: +5 min  |  Mantener: INICIAR                    | |
+| +-----------------------------------------------------------+ |
++---------------------------------------------------------------+
+| IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
++---------------------------------------------------------------+
 ```
 
 ---
 
 ## Características
 
+- **Navegación Interactiva por Botones:** Navegación cíclica entre páginas (Páginas 1, 2 y 3) mediante botones físicos con filtro antirrebote.
+- **Página de Temporizador (Timer) con Alarma:** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer al llegar a cero.
+- **Apagado y Modo Noche (Sleep Mode):** Apagado manual de pantalla mediante el botón de acción en las páginas de reloj y clima, o apagado programado automático por horario (modo nocturno). Reactivación instantánea al pulsar cualquier botón.
 - **Sincronización NTP y Reglas POSIX:** Obtención automática de fecha y hora local con cálculo de cambio de horario estacional (horario de verano e invierno) en el microcontrolador sin llamadas web adicionales.
 - **Pronóstico Meteorológico Completo:** Temperatura actual, porcentaje de humedad, condición del cielo y pronóstico de los 2 días posteriores (mínimas y máximas).
 - **API sin Claves ni Registro:** Emplea Open-Meteo mediante peticiones HTTP filtradas de bajo consumo en RAM (<2 KB en heap).
@@ -83,39 +104,56 @@ Página 2 (Modo Horario - DISPLAY_PAGE_MODE = 2):
 
 ## Diagrama de Conexiones
 
-### Asignación de Pines (Lolin NodeMCU V3 -> Pantalla TFT SPI 2.8")
+### Asignación de Pines Completa (NodeMCU V3 -> Pantalla TFT, Botones y Buzzer)
 
-| Pin TFT (ILI9341) | Pin NodeMCU (Serigrafía) | GPIO ESP8266 | Función |
-| :--- | :--- | :--- | :--- |
-| **VCC** | **VIN (5V)** ó **3V3** | - | Alimentación eléctrica |
-| **GND** | **GND** | - | Tierra común |
-| **CS** | **D8** | GPIO15 | TFT Chip Select |
-| **RESET / RST** | **D4** | GPIO2 | Reset del controlador TFT |
-| **DC / RS** | **D3** | GPIO0 | Selección de Datos / Comando |
-| **SDI (MOSI)** | **D7** | GPIO13 | Bus HSPI - Datos hacia la pantalla |
-| **SCK (CLK)** | **D5** | GPIO14 | Bus HSPI - Reloj SPI |
-| **LED** | **3V3** | - | Retroiluminación (Backlight) |
-| **SDO (MISO)** | **D6** *(Opcional)* | GPIO12 | Bus HSPI - Lectura (no requerida) |
+| Periférico | Pin Módulo / Botón | Pin NodeMCU | GPIO ESP8266 | Función / Configuración |
+| :--- | :--- | :--- | :--- | :--- |
+| **Pantalla TFT** | **VCC** | **VIN (5V)** ó **3V3** | - | Alimentación eléctrica |
+| **Pantalla TFT** | **GND** | **GND** | - | Tierra común |
+| **Pantalla TFT** | **CS** | **D8** | GPIO15 | TFT Chip Select |
+| **Pantalla TFT** | **RESET / RST** | **D4** | GPIO2 | Reset del controlador TFT |
+| **Pantalla TFT** | **DC / RS** | **D3** | GPIO0 | Selección de Datos / Comando |
+| **Pantalla TFT** | **SDI (MOSI)** | **D7** | GPIO13 | Bus HSPI - Datos hacia la pantalla |
+| **Pantalla TFT** | **SCK (CLK)** | **D5** | GPIO14 | Bus HSPI - Reloj SPI |
+| **Pantalla TFT** | **LED** | **3V3** | - | Retroiluminación (Backlight) |
+| **Botón 1 (Prev)** | Terminal A / GND | **D1** | GPIO5 | `INPUT_PULLUP` - Retroceder página |
+| **Botón 2 (Next)** | Terminal A / GND | **D2** | GPIO4 | `INPUT_PULLUP` - Avanzar página |
+| **Botón 3 (Action)** | Terminal A / GND | **D6** | GPIO12 | `INPUT_PULLUP` - Ajuste timer / Sleep / Silenciar |
+| **Buzzer** | Señal / (+) / GND | **D0** | GPIO16 | `OUTPUT` - Alarma de temporizador |
 
 ```text
-       +----------------------------+
-       |   Lolin NodeMCU V3         |
-       |      (ESP8266)             |
-       +----------------------------+
-       |   VIN (5V) / 3V3           | -----> VCC   (Módulo TFT 2.8")
-       |   GND                      | -----> GND   (Módulo TFT 2.8")
-       |   D8 (GPIO15)              | -----> CS    (TFT Chip Select)
-       |   D4 (GPIO2)               | -----> RESET (TFT Reset)
-       |   D3 (GPIO0)               | -----> DC/RS (Data / Command)
-       |   D7 (GPIO13 - HSPI MOSI)  | -----> SDI   (MOSI / TFT Data In)
-       |   D5 (GPIO14 - HSPI CLK)   | -----> SCK   (CLK / SPI Clock)
-       |   3V3                      | -----> LED   (TFT Backlight)
-       |   D6 (GPIO12 - HSPI MISO)  | .....> SDO   (MISO - Opcional)
-       +----------------------------+
+                                Lolin NodeMCU V3 (ESP8266)
+                               +--------------------------+
+  [ Pulsador 1: Ant/Prev ] ----| D1 (GPIO5)               |
+  [ Pulsador 2: Sig/Next ] ----| D2 (GPIO4)           VIN |---> Alimentación 5V / VCC TFT
+  [ Pulsador 3: Acción   ] ----| D6 (GPIO12)          GND |---> GND Común (Botones, Buzzer, TFT)
+  [ Buzzer (+) / Señal   ] ----| D0 (GPIO16)          3V3 |---> TFT LED Backlight (o 3.3V)
+                               | D8 (GPIO15)              |---> TFT CS
+                               | D4 (GPIO2)               |---> TFT RST
+                               | D3 (GPIO0)               |---> TFT DC
+                               | D7 (GPIO13)              |---> TFT MOSI (SDI)
+                               | D5 (GPIO14)              |---> TFT CLK (SCK)
+                               +--------------------------+
+
+  * Cada pulsador se conecta directamente entre su pin (D1, D2, D6) y GND Común (usa pull-up interno).
+  * El buzzer se conecta entre D0 y GND Común (o VCC/GND + señal a D0 si es módulo).
 ```
 
 > [!NOTE]
 > Los pines táctiles (`T_CLK`, `T_CS`, `T_DIN`, `T_DO`, `T_IRQ`) y el lector de tarjeta micro-SD (`SD_CS`, etc.) no son necesarios para este proyecto y pueden permanecer desconectados.
+
+### Funciones de los Botones
+
+| Botón | Pantalla Activa | Pulsación Corta (Click) | Pulsación Larga (> 1 seg) |
+| :--- | :--- | :--- | :--- |
+| **Botón 1 (Prev / D1)** | Cualquiera | Retroceder página ($3 \rightarrow 2 \rightarrow 1 \rightarrow 3$) | - |
+| **Botón 2 (Next / D2)** | Cualquiera | Avanzar página ($1 \rightarrow 2 \rightarrow 3 \rightarrow 1$) | - |
+| **Botón 3 (Action / D6)** | Página 1 (Diario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
+| **Botón 3 (Action / D6)** | Página 2 (Horario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
+| **Botón 3 (Action / D6)** | Página 3 (Timer - Ajuste) | Sumar tiempo (**+5 min**) | **Iniciar conteo regresivo** |
+| **Botón 3 (Action / D6)** | Página 3 (Timer - Conteo) | **Detener / Cancelar** conteo | - |
+| **Cualquier Botón** | Alarma sonando | **Silenciar alarma del buzzer** | Silenciar alarma del buzzer |
+| **Cualquier Botón** | Pantalla en reposo (Sleep) | **Encender pantalla / Despertar** | Encender pantalla / Despertar |
 
 ---
 
@@ -212,15 +250,19 @@ arduino-weather-clock/
 ├── .gitignore                  # Exclusiones de control de versiones y credenciales
 ├── include/
 │   ├── config.h.example        # Plantilla pública de parámetros
-│   ├── config.h                # Configuración local de Wi-Fi y ubicación (ignorado por Git)
+│   ├── config.h                # Configuración local de Wi-Fi, pines y temporizador
 │   ├── time_service.h          # Declaración de funciones NTP y calendario en español
 │   ├── weather_service.h       # Modelo de datos meteorológicos y tipos de iconos
-│   └── display_ui.h            # Controladores del display TFT y layout visual
+│   ├── display_ui.h            # Controladores del display TFT, layout y temporizador
+│   ├── input_controller.h      # Controlador no bloqueante de botones (antirrebote y long press)
+│   └── buzzer_controller.h     # Controlador no bloqueante del buzzer y patrones de alarma
 ├── src/
-│   ├── main.cpp                # Setup, bucle de ejecución y temporizadores no bloqueantes
+│   ├── main.cpp                # Setup, bucle de ejecución, navegación y temporizador
 │   ├── time_service.cpp        # Manejo de SNTP nativo y formateo en español
 │   ├── weather_service.cpp     # Consulta HTTP a Open-Meteo y deserialización JSON
-│   └── display_ui.cpp          # Renderizado de componentes gráficos y reloj
+│   ├── display_ui.cpp          # Renderizado gráfico de reloj, clima y temporizador
+│   ├── input_controller.cpp    # Detección de clics y pulsaciones sostenidas
+│   └── buzzer_controller.cpp   # Patrones acústicos para alarmas y confirmaciones
 └── README.md
 ```
 
