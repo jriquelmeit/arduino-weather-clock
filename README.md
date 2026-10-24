@@ -115,7 +115,7 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
 | **Pantalla TFT** | **DC / RS** | **D3** | GPIO0 | Selección de Datos / Comando |
 | **Pantalla TFT** | **SDI (MOSI)** | **D7** | GPIO13 | Bus HSPI - Datos hacia la pantalla |
 | **Pantalla TFT** | **SCK (CLK)** | **D5** | GPIO14 | Bus HSPI - Reloj SPI |
-| **Pantalla TFT** | **LED** | **3V3** | - | Retroiluminación (Backlight) |
+| **Pantalla TFT** | **LED** | **3V3** ó Transistor NPN | - / GPIO3 (RX) | Retroiluminación (directo a 3V3 ó con 2N2222 en pin RX) |
 | **Botón 1 (Prev)** | Terminal A / GND | **D1** | GPIO5 | `INPUT_PULLUP` - Retroceder página |
 | **Botón 2 (Next)** | Terminal A / GND | **D2** | GPIO4 | `INPUT_PULLUP` - Avanzar página |
 | **Botón 3 (Action)** | Terminal A / GND | **D6** | GPIO12 | `INPUT_PULLUP` - Ajuste timer / Sleep / Silenciar |
@@ -127,16 +127,37 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
   [ Pulsador 1: Ant/Prev ] ----| D1 (GPIO5)               |
   [ Pulsador 2: Sig/Next ] ----| D2 (GPIO4)           VIN |---> Alimentación 5V / VCC TFT
   [ Pulsador 3: Acción   ] ----| D6 (GPIO12)          GND |---> GND Común (Botones, Buzzer, TFT)
-  [ Buzzer (+) / Señal   ] ----| D0 (GPIO16)          3V3 |---> TFT LED Backlight (o 3.3V)
+  [ Buzzer (+) / Señal   ] ----| D0 (GPIO16)          3V3 |---> TFT LED Backlight (si no se usa transistor)
                                | D8 (GPIO15)              |---> TFT CS
                                | D4 (GPIO2)               |---> TFT RST
                                | D3 (GPIO0)               |---> TFT DC
                                | D7 (GPIO13)              |---> TFT MOSI (SDI)
                                | D5 (GPIO14)              |---> TFT CLK (SCK)
+                               | RX (GPIO3)               |---> Base Transistor NPN (Opcional - Backlight)
                                +--------------------------+
 
   * Cada pulsador se conecta directamente entre su pin (D1, D2, D6) y GND Común (usa pull-up interno).
   * El buzzer se conecta entre D0 y GND Común (o VCC/GND + señal a D0 si es módulo).
+```
+
+### Control de Retroiluminación por Transistor (Apagado 100% Negro)
+
+Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sleep apaga los píxeles pero la luz de fondo permanece encendida (pantalla blanca). Para lograr un **apagado 100% en negro total**, se puede intercalar un transistor NPN (ej. **2N2222**, **2N3904** o **BC547**):
+
+```text
+       NodeMCU ESP8266                                 Pantalla TFT
+      +----------------+                              +------------+
+      |   RX (GPIO3) --+---[ Resistencia 1k ]         |            |
+      |                |            |                 |            |
+      |                |         (Base)               |            |
+      |                |          /                   |            |
+      |                |     +---|<  NPN (2N2222)     |            |
+      |                |     |    \                   |            |
+      |                |     |   (Colector)           |            |
+      |                |     |      +---------------> | LED        |
+      |                |     |                        |            |
+      |          GND --+-----+----------------------> | GND        |
+      +----------------+  (Emisor)                    +------------+
 ```
 
 > [!NOTE]

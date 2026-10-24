@@ -17,14 +17,18 @@
 //   TFT_RST  -> D4 (GPIO2 / LED_BUILTIN)
 //   TFT_MOSI -> D7 (GPIO13 / HSPI MOSI)
 //   TFT_CLK  -> D5 (GPIO14 / HSPI SCK)
-//   TFT_MISO -> D6 (GPIO12 / Opcional)
+//   TFT_MISO -> Desconectado (no requerida)
 //   VCC      -> VIN (5V) o 3V3
-//   LED      -> 3V3
+//   LED      -> 3V3 directo, o mediante transistor NPN (2N2222) controlado por pin RX (GPIO3)
 //   GND      -> GND
 #define TFT_CS          D8
 #define TFT_DC          D3
 #define TFT_RST         D4
 #define TFT_ROTATION    3   // 3: Horizontal 320x240 (con pines arriba a la izquierda)
+
+// Control de retroiluminación por transistor NPN (pin RX del NodeMCU = GPIO3)
+// Si el pin LED de la pantalla está directo a 3V3, puedes dejar 3 o poner -1
+#define TFT_LED_PIN     3
 
 // ==========================================
 // UBICACIÓN Y ZONA HORARIA

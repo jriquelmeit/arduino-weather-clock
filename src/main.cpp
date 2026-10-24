@@ -8,7 +8,7 @@
 #include "buzzer_controller.h"
 
 // Instancias principales
-static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST);
+static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST, TFT_LED_PIN);
 static WeatherService weatherService;
 static WeatherData weatherData;
 static InputController inputCtrl(PIN_BTN_PREV, PIN_BTN_NEXT, PIN_BTN_ACTION, TIMER_LONG_PRESS_MS);

@@ -15,7 +15,7 @@ enum TimerDisplayState {
 
 class DisplayUI {
 public:
-    DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst);
+    DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin = -1);
 
     void begin(uint8_t rotation = 3);
     void showBootScreen(const char* ssid);
@@ -40,6 +40,7 @@ public:
 
 private:
     Adafruit_ILI9341 _tft;
+    int8_t _ledPin;
     char _lastTimeStr[10];
     char _lastDateStr[40];
     char _lastDayName[16];

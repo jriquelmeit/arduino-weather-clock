@@ -4,8 +4,9 @@
 #define COLOR_BORDER_CARD     0x2145
 #define COLOR_TEXT_MUTED      0x8410
 
-DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
+DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
     : _tft(cs, dc, rst),
+      _ledPin(ledPin),
       _lastTimerState((TimerDisplayState)-1),
       _lastProgressBarWidth(-1),
       _lastRssi(-999),
@@ -18,6 +19,10 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst)
 }
 
 void DisplayUI::begin(uint8_t rotation) {
+    if (_ledPin >= 0) {
+        pinMode(_ledPin, OUTPUT);
+        digitalWrite(_ledPin, HIGH); // Encender backlight
+    }
     _tft.begin(40000000); // 40 MHz SPI para máxima fluidez
     _tft.setRotation(rotation);
     _tft.fillScreen(ILI9341_BLACK);
@@ -563,6 +568,9 @@ void DisplayUI::updateTimer(uint16_t remainingSec, uint16_t totalSec, TimerDispl
 
 void DisplayUI::sleepDisplay() {
     if (_isSleeping) return;
+    if (_ledPin >= 0) {
+        digitalWrite(_ledPin, LOW); // Cortar backlight con transistor
+    }
     _tft.sendCommand(ILI9341_DISPOFF);
     _tft.sendCommand(ILI9341_SLPIN);
     _isSleeping = true;
@@ -573,6 +581,9 @@ void DisplayUI::wakeDisplay() {
     _tft.sendCommand(ILI9341_SLPOUT);
     delay(120);
     _tft.sendCommand(ILI9341_DISPON);
+    if (_ledPin >= 0) {
+        digitalWrite(_ledPin, HIGH); // Encender backlight con transistor
+    }
     _isSleeping = false;
 }
 
