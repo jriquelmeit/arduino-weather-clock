@@ -421,6 +421,20 @@ void DisplayUI::drawWeatherIcon(int x, int y, WeatherIconType type, bool small) 
             }
             break;
 
+        case ICON_CLEAR_NIGHT: {
+            // Luna creciente amarilla
+            _tft.fillCircle(x, y, r, ILI9341_YELLOW);
+            int cutOffset = small ? 3 : 4;
+            _tft.fillCircle(x + cutOffset, y - cutOffset, r - (small ? 1 : 1), ILI9341_BLACK);
+            // Pequeñas estrellas decorativas
+            _tft.drawPixel(x - (small ? 4 : 6), y - (small ? 3 : 5), ILI9341_WHITE);
+            _tft.drawPixel(x - (small ? 2 : 4), y + (small ? 4 : 6), 0xFFE0);
+            if (!small) {
+                _tft.drawPixel(x + 5, y + 6, ILI9341_WHITE);
+            }
+            break;
+        }
+
         case ICON_PARTLY_CLOUDY:
             // Sol atrás a la izquierda
             _tft.fillCircle(x - (small ? 4 : 6), y - (small ? 4 : 6), small ? 5 : 7, ILI9341_YELLOW);
@@ -429,6 +443,21 @@ void DisplayUI::drawWeatherIcon(int x, int y, WeatherIconType type, bool small) 
             _tft.fillCircle(x + (small ? 6 : 9), y + 3, small ? 4 : 6, ILI9341_LIGHTGREY);
             _tft.fillRect(x - (small ? 4 : 6), y + (small ? 3 : 4), small ? 14 : 20, small ? 5 : 7, ILI9341_WHITE);
             break;
+
+        case ICON_PARTLY_CLOUDY_NIGHT: {
+            // Luna creciente atrás a la izquierda
+            int lx = x - (small ? 4 : 6);
+            int ly = y - (small ? 4 : 6);
+            int lr = small ? 5 : 7;
+            _tft.fillCircle(lx, ly, lr, ILI9341_YELLOW);
+            _tft.fillCircle(lx + (small ? 2 : 3), ly - (small ? 2 : 3), lr - (small ? 1 : 1), ILI9341_BLACK);
+
+            // Nube enfrente
+            _tft.fillCircle(x, y + 2, small ? 5 : 7, ILI9341_WHITE);
+            _tft.fillCircle(x + (small ? 6 : 9), y + 3, small ? 4 : 6, ILI9341_LIGHTGREY);
+            _tft.fillRect(x - (small ? 4 : 6), y + (small ? 3 : 4), small ? 14 : 20, small ? 5 : 7, ILI9341_WHITE);
+            break;
+        }
 
         case ICON_CLOUDY:
             // Nube esponjosa

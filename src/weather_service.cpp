@@ -39,13 +39,13 @@ const char* getWeatherDescription(int code) {
     }
 }
 
-WeatherIconType getWeatherIconType(int code) {
+WeatherIconType getWeatherIconType(int code, bool isDay) {
     switch (code) {
         case 0:
         case 1:
-            return ICON_SUNNY;
+            return isDay ? ICON_SUNNY : ICON_CLEAR_NIGHT;
         case 2:
-            return ICON_PARTLY_CLOUDY;
+            return isDay ? ICON_PARTLY_CLOUDY : ICON_PARTLY_CLOUDY_NIGHT;
         case 3:
         case 45:
         case 48:
@@ -76,7 +76,7 @@ WeatherIconType getWeatherIconType(int code) {
         case 99:
             return ICON_THUNDERSTORM;
         default:
-            return ICON_PARTLY_CLOUDY;
+            return isDay ? ICON_PARTLY_CLOUDY : ICON_PARTLY_CLOUDY_NIGHT;
     }
 }
 
@@ -101,9 +101,9 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     url += lat;
     url += "&longitude=";
     url += lon;
-    url += "&current=temperature_2m,relative_humidity_2m,weather_code";
+    url += "&current=temperature_2m,relative_humidity_2m,is_day,weather_code";
     url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum";
-    url += "&hourly=temperature_2m,weather_code,precipitation_probability,precipitation";
+    url += "&hourly=temperature_2m,is_day,weather_code,precipitation_probability,precipitation";
     url += "&forecast_hours=";
     url += String(forecastHours);
     url += "&forecast_days=3";
@@ -140,10 +140,11 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     // Parsear clima actual
     outData.current.temperature = doc["current"]["temperature_2m"] | 0.0f;
     outData.current.humidity = doc["current"]["relative_humidity_2m"] | 0;
+    outData.current.isDay = (doc["current"]["is_day"] | 1) == 1;
     outData.current.weatherCode = doc["current"]["weather_code"] | 0;
     snprintf(outData.current.conditionText, sizeof(outData.current.conditionText), "%s",
              getWeatherDescription(outData.current.weatherCode));
-    outData.current.iconType = getWeatherIconType(outData.current.weatherCode);
+    outData.current.iconType = getWeatherIconType(outData.current.weatherCode, outData.current.isDay);
 
     // Parsear pronóstico de hoy (índice 0 de daily)
     const char* todayStr = doc["daily"]["time"][0] | "";
@@ -188,12 +189,13 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
         }
 
         outData.hourly[i].temperature = doc["hourly"]["temperature_2m"][hIndex] | 0.0f;
+        outData.hourly[i].isDay = (doc["hourly"]["is_day"][hIndex] | 1) == 1;
         outData.hourly[i].weatherCode = doc["hourly"]["weather_code"][hIndex] | 0;
         outData.hourly[i].rainProbability = doc["hourly"]["precipitation_probability"][hIndex] | 0;
         outData.hourly[i].precipitation = doc["hourly"]["precipitation"][hIndex] | 0.0f;
         snprintf(outData.hourly[i].conditionText, sizeof(outData.hourly[i].conditionText), "%s",
                  getWeatherDescription(outData.hourly[i].weatherCode));
-        outData.hourly[i].iconType = getWeatherIconType(outData.hourly[i].weatherCode);
+        outData.hourly[i].iconType = getWeatherIconType(outData.hourly[i].weatherCode, outData.hourly[i].isDay);
     }
 
     outData.valid = true;

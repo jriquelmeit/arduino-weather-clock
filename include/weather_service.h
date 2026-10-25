@@ -4,7 +4,9 @@
 
 enum WeatherIconType {
     ICON_SUNNY = 0,
+    ICON_CLEAR_NIGHT,
     ICON_PARTLY_CLOUDY,
+    ICON_PARTLY_CLOUDY_NIGHT,
     ICON_CLOUDY,
     ICON_RAIN,
     ICON_SNOW,
@@ -16,6 +18,7 @@ struct CurrentWeather {
     float temperature;
     int humidity;
     int weatherCode;
+    bool isDay;
     char conditionText[30];
     WeatherIconType iconType;
 };
@@ -36,6 +39,7 @@ struct HourlyForecast {
     char timeStr[8];      // "HH:MM" o "+12h"
     float temperature;
     int weatherCode;
+    bool isDay;
     int rainProbability;  // Probabilidad por hora (%)
     float precipitation;  // Precipitación por hora (mm)
     char conditionText[30];
@@ -52,7 +56,7 @@ struct WeatherData {
 };
 
 const char* getWeatherDescription(int code);
-WeatherIconType getWeatherIconType(int code);
+WeatherIconType getWeatherIconType(int code, bool isDay = true);
 
 class WeatherService {
 public:
