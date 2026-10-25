@@ -24,8 +24,11 @@ static uint16_t timerRemainingSec = TIMER_DEFAULT_MINUTES * 60;
 static unsigned long lastTimerTick = 0;
 
 // Modo noche y reposo
+static bool manualSleepActive = false;
+static bool nightAutoSleepActive = false;
 static bool manualWakeActive = false;
 static unsigned long manualWakeTime = 0;
+static unsigned long lastSleepToggleTime = 0;
 
 // Temporizadores periódicos
 static unsigned long lastClockTick = 0;
@@ -92,15 +95,21 @@ void handleNightMode(const DateTimeInfo& dt) {
             if (manualWakeActive) {
                 if (now - manualWakeTime >= NIGHT_MODE_WAKE_TIMEOUT_MS) {
                     manualWakeActive = false;
+                    nightAutoSleepActive = true;
                     ui.sleepDisplay();
                 }
             } else {
+                nightAutoSleepActive = true;
                 ui.sleepDisplay();
             }
         }
     } else {
+        // Es de día
         manualWakeActive = false;
-        if (ui.isSleeping()) {
+        // Solo despertar automáticamente si la pantalla fue apagada por el modo noche programado
+        if (nightAutoSleepActive && ui.isSleeping()) {
+            nightAutoSleepActive = false;
+            manualSleepActive = false;
             ui.wakeDisplay();
             switchPage(currentPage, true);
         }
@@ -217,11 +226,30 @@ void loop() {
 
     // Si la pantalla estaba apagada y se pulsa cualquier botón, despertar
     if (anyButtonActivity && ui.isSleeping()) {
-        ui.wakeDisplay();
-        switchPage(currentPage, true);
-        manualWakeActive = true;
-        manualWakeTime = now;
-        if (BUZZER_KEY_BEEP) buzzer.beep(30);
+        // Cooldown para evitar que el rebote físico al soltar el botón despierte la pantalla
+        if (now - lastSleepToggleTime >= 350) {
+            manualSleepActive = false;
+            nightAutoSleepActive = false;
+            lastSleepToggleTime = now;
+
+            DateTimeInfo dt;
+            if (getCurrentDateTime(dt)) {
+                bool isNight;
+                if (NIGHT_MODE_START_HOUR > NIGHT_MODE_END_HOUR) {
+                    isNight = (dt.hour >= NIGHT_MODE_START_HOUR || dt.hour < NIGHT_MODE_END_HOUR);
+                } else {
+                    isNight = (dt.hour >= NIGHT_MODE_START_HOUR && dt.hour < NIGHT_MODE_END_HOUR);
+                }
+                if (isNight) {
+                    manualWakeActive = true;
+                    manualWakeTime = now;
+                }
+            }
+
+            ui.wakeDisplay();
+            switchPage(currentPage, true);
+            if (BUZZER_KEY_BEEP) buzzer.beep(30);
+        }
         return;
     }
 
@@ -263,6 +291,10 @@ void loop() {
             // En páginas 1, 2 y 3: Pulsación corta apaga la pantalla (Sleep)
             if (evAction == BTN_EVENT_SHORT_CLICK) {
                 if (BUZZER_KEY_BEEP) buzzer.beep(30);
+                manualSleepActive = true;
+                nightAutoSleepActive = false;
+                manualWakeActive = false;
+                lastSleepToggleTime = now;
                 ui.sleepDisplay();
             }
         } else if (currentPage == 4) {
@@ -317,6 +349,9 @@ void loop() {
                 buzzer.startAlarm(TIMER_ALARM_DURATION_MS);
 
                 // Despertar pantalla si estaba en sleep
+                manualSleepActive = false;
+                nightAutoSleepActive = false;
+                manualWakeActive = false;
                 if (ui.isSleeping()) {
                     ui.wakeDisplay();
                 }
