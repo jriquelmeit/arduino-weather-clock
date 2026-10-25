@@ -17,6 +17,7 @@ enum WeatherIconType {
 struct CurrentWeather {
     float temperature;
     int humidity;
+    float uvIndex;
     int weatherCode;
     bool isDay;
     char conditionText[30];
@@ -31,6 +32,7 @@ struct DailyForecast {
     int weatherCode;
     int rainProbability;  // Probabilidad máxima (%)
     float precipitation;  // Precipitación acumulada (mm)
+    float uvIndexMax;     // UV Máximo del día
     char conditionText[30];
     WeatherIconType iconType;
 };
@@ -57,6 +59,8 @@ struct WeatherData {
 
 const char* getWeatherDescription(int code);
 WeatherIconType getWeatherIconType(int code, bool isDay = true);
+const char* getUvCategory(float uv);
+uint16_t getUvColor(float uv);
 
 class WeatherService {
 public:

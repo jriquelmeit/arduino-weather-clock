@@ -1,5 +1,6 @@
 #include "weather_service.h"
 #include "time_service.h"
+#include <Adafruit_ILI9341.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
@@ -80,6 +81,22 @@ WeatherIconType getWeatherIconType(int code, bool isDay) {
     }
 }
 
+const char* getUvCategory(float uv) {
+    if (uv < 2.5f) return "Bajo";
+    if (uv < 5.5f) return "Mod.";
+    if (uv < 7.5f) return "Alto";
+    if (uv < 10.5f) return "M.Alto";
+    return "Extrem.";
+}
+
+uint16_t getUvColor(float uv) {
+    if (uv < 2.5f) return ILI9341_GREEN;
+    if (uv < 5.5f) return ILI9341_YELLOW;
+    if (uv < 7.5f) return ILI9341_ORANGE;
+    if (uv < 10.5f) return ILI9341_RED;
+    return ILI9341_MAGENTA;
+}
+
 WeatherService::WeatherService() {}
 
 bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData& outData, uint8_t hourlyStep) {
@@ -101,8 +118,8 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     url += lat;
     url += "&longitude=";
     url += lon;
-    url += "&current=temperature_2m,relative_humidity_2m,is_day,weather_code";
-    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum";
+    url += "&current=temperature_2m,relative_humidity_2m,is_day,weather_code,uv_index";
+    url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max";
     url += "&hourly=temperature_2m,is_day,weather_code,precipitation_probability,precipitation";
     url += "&forecast_hours=";
     url += String(forecastHours);
@@ -140,6 +157,7 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     // Parsear clima actual
     outData.current.temperature = doc["current"]["temperature_2m"] | 0.0f;
     outData.current.humidity = doc["current"]["relative_humidity_2m"] | 0;
+    outData.current.uvIndex = doc["current"]["uv_index"] | 0.0f;
     outData.current.isDay = (doc["current"]["is_day"] | 1) == 1;
     outData.current.weatherCode = doc["current"]["weather_code"] | 0;
     snprintf(outData.current.conditionText, sizeof(outData.current.conditionText), "%s",
@@ -155,6 +173,7 @@ bool WeatherService::fetchWeather(const char* lat, const char* lon, WeatherData&
     outData.today.weatherCode = doc["daily"]["weather_code"][0] | 0;
     outData.today.rainProbability = doc["daily"]["precipitation_probability_max"][0] | 0;
     outData.today.precipitation = doc["daily"]["precipitation_sum"][0] | 0.0f;
+    outData.today.uvIndexMax = doc["daily"]["uv_index_max"][0] | 0.0f;
     snprintf(outData.today.conditionText, sizeof(outData.today.conditionText), "%s",
              getWeatherDescription(outData.today.weatherCode));
     outData.today.iconType = getWeatherIconType(outData.today.weatherCode);

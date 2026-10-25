@@ -42,17 +42,20 @@ private:
     Adafruit_ILI9341 _tft;
     int8_t _ledPin;
     char _lastTimeStr[10];
-    char _lastDateStr[40];
+    char _lastDateStr[64];
     char _lastDayName[16];
     char _lastTimerStr[10];
     TimerDisplayState _lastTimerState;
     int _lastProgressBarWidth;
+    int _lastSecond;
     int _lastRssi;
     bool _lastWifiState;
     bool _isSleeping;
+    uint8_t _pageMode;
 
     void drawDailyForecast(const WeatherData& weather);
     void drawHourlyForecast(const WeatherData& weather);
+    void drawPage3Weather(const WeatherData& weather);
     void drawWeatherIcon(int x, int y, WeatherIconType type, bool small);
     void drawWaterDrop(int x, int y, uint16_t color);
     void drawWifiIndicator(int x, int y, bool connected, int rssi);

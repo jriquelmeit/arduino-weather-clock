@@ -9,9 +9,11 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
       _ledPin(ledPin),
       _lastTimerState((TimerDisplayState)-1),
       _lastProgressBarWidth(-1),
+      _lastSecond(-1),
       _lastRssi(-999),
       _lastWifiState(false),
-      _isSleeping(false) {
+      _isSleeping(false),
+      _pageMode(1) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
     _lastDayName[0] = '\0';
@@ -77,19 +79,27 @@ void DisplayUI::updateBootProgress(const char* stepMsg, uint8_t dots) {
 }
 
 void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool fullRedraw) {
+    _pageMode = pageMode;
+
     if (fullRedraw) {
         _tft.fillScreen(ILI9341_BLACK);
 
-        // 1. Barra de Cabecera
-        _tft.fillRect(0, 0, 320, 26, COLOR_BG_HEADER);
-        _tft.drawFastHLine(0, 26, 320, ILI9341_CYAN);
+        if (pageMode == 3) {
+            // Página 3: Barra de Cabecera dedicada a la fecha y santoral (Y: 0..24)
+            _tft.fillRect(0, 0, 320, 24, COLOR_BG_HEADER);
+            _tft.drawFastHLine(0, 24, 320, ILI9341_CYAN);
+        } else {
+            // Páginas 1, 2 y 4: Barra de Cabecera estándar con ubicación (Y: 0..26)
+            _tft.fillRect(0, 0, 320, 26, COLOR_BG_HEADER);
+            _tft.drawFastHLine(0, 26, 320, ILI9341_CYAN);
 
-        _tft.setTextSize(2);
-        _tft.setTextColor(ILI9341_CYAN, COLOR_BG_HEADER);
-        _tft.setCursor(8, 6);
-        _tft.print(locationName);
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_CYAN, COLOR_BG_HEADER);
+            _tft.setCursor(8, 6);
+            _tft.print(locationName);
+        }
 
-        // 5. Línea divisoria barra inferior
+        // Línea divisoria barra inferior
         _tft.drawFastHLine(0, 224, 320, ILI9341_DARKGREY);
 
         _lastDateStr[0] = '\0';
@@ -97,27 +107,78 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
         _lastWifiState = false;
     } else {
         // Redibujado rápido: solo borrar la zona central de contenido (Y: 27 a 223)
-        // La cabecera superior y la barra inferior permanecen intactas (sin parpadeo)
         _tft.fillRect(0, 27, 320, 197, ILI9341_BLACK);
     }
 
-    if (pageMode == 3) {
-        // Página 3: Tarjeta grande central para Temporizador
+    if (pageMode == 4) {
+        // Página 4: Tarjeta grande central para Temporizador
         _tft.drawRoundRect(4, 30, 312, 190, 8, ILI9341_DARKCYAN);
         _tft.setTextSize(1);
         _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
         _tft.setCursor(14, 38);
         _tft.print("TEMPORIZADOR");
+    } else if (pageMode == 3) {
+        // Página 3: Layout Dashboard Central (3 Columnas)
+        // 1. Tarjeta Izquierda: Estado Actual (X: 3..67, Y: 26..222)
+        _tft.drawRoundRect(3, 26, 64, 196, 5, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(6, 42, 58, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(6, 90, 58, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(6, 130, 58, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(6, 170, 58, COLOR_BORDER_CARD);
+
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(16, 31);
+        _tft.print("ACTUAL");
+
+        _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+        _tft.setCursor(8, 94);
+        _tft.print("TEMP");
+
+        _tft.setCursor(8, 134);
+        _tft.print("HUMEDAD");
+
+        _tft.setCursor(6, 174);
+        _tft.print("INDICE UV");
+
+        // 2. Tarjeta Central: Reloj Principal (X: 70..250, Y: 26..222, Ancho: 180)
+        _tft.drawRoundRect(70, 26, 180, 196, 5, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(76, 68, 168, COLOR_BORDER_CARD);  // Divisor superior
+        _tft.drawFastHLine(76, 160, 168, COLOR_BORDER_CARD); // Divisor inferior
+
+        // Marco barra de segundos (X: 86, Y: 168, Ancho: 148, Alto: 6)
+        _tft.drawRect(86, 168, 148, 6, COLOR_BORDER_CARD);
+
+        // 3. Tarjeta Derecha: Pronóstico Hoy (X: 253..317, Y: 26..222)
+        _tft.drawRoundRect(253, 26, 64, 196, 5, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(256, 42, 58, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(256, 82, 58, COLOR_BORDER_CARD);
+        _tft.drawFastHLine(256, 144, 58, COLOR_BORDER_CARD);
+
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(276, 31);
+        _tft.print("HOY");
+
+        _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+        _tft.setCursor(257, 86);
+        _tft.print("MAX");
+
+        _tft.setCursor(257, 116);
+        _tft.print("MIN");
     } else {
-        // 2. Tarjeta Reloj Digital (Izquierda superior)
+        // Páginas 1 y 2: Tarjeta Reloj Digital (Izquierda superior)
         _tft.drawRoundRect(4, 30, 184, 102, 6, ILI9341_DARKGREY);
         _tft.setTextSize(1);
         _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
         _tft.setCursor(12, 36);
         _tft.print("HORA LOCAL");
 
+        // Marco barra de segundos
+        _tft.drawRect(12, 106, 168, 6, COLOR_BORDER_CARD);
+
         // Indicador estático de sincronización (se dibuja una sola vez)
-        _tft.setCursor(12, 114);
+        _tft.setCursor(12, 118);
         _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
         _tft.print("NTP Sincronizado");
 
@@ -147,49 +208,122 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
     _lastTimerStr[0] = '\0';
     _lastTimerState = (TimerDisplayState)-1;
     _lastProgressBarWidth = -1;
+    _lastSecond = -1;
 }
 
 void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
-    if (_isSleeping) return;
+    if (_isSleeping || _pageMode == 4) return;
 
-    // 1. Reloj en formato HH:MM (solo se redibuja al cambiar el minuto)
-    if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
-        _tft.fillRect(10, 48, 172, 32, ILI9341_BLACK);
-        _tft.setTextSize(4);
-        _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-        _tft.setCursor(24, 50);
-        _tft.print(timeInfo.shortTimeStr);
-        strncpy(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr));
-    }
+    if (_pageMode == 3) {
+        // --- Modo Página 3: Reloj Gigante Central ---
+        // 1. Día de la semana (Centrado arriba del reloj gigante, Y: 32..64)
+        if (strncmp(_lastDayName, timeInfo.dayName, sizeof(_lastDayName)) != 0) {
+            _tft.fillRect(72, 32, 176, 32, ILI9341_BLACK);
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+            int len = strlen(timeInfo.dayName);
+            int x = 70 + (180 - (len * 12)) / 2;
+            _tft.setCursor(x > 72 ? x : 72, 42);
+            _tft.print(timeInfo.dayName);
+            strncpy(_lastDayName, timeInfo.dayName, sizeof(_lastDayName));
+        }
 
-    // 2. Subtítulo: Día de la semana (SOLO se redibuja si cambia de día o al iniciar)
-    if (strncmp(_lastDayName, timeInfo.dayName, sizeof(_lastDayName)) != 0) {
-        _tft.fillRect(12, 86, 168, 18, ILI9341_BLACK);
-        _tft.setTextSize(2);
-        _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
-        _tft.setCursor(12, 88);
-        _tft.print(timeInfo.dayName);
-        strncpy(_lastDayName, timeInfo.dayName, sizeof(_lastDayName));
+        // 2. Reloj Gigante en formato HH:MM (Tamaño 6x horiz, 7x vert, centrado Y: 94)
+        if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
+            _tft.fillRect(72, 90, 176, 62, ILI9341_BLACK);
+            _tft.setTextSize(6, 7);
+            _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+            _tft.setCursor(73, 94);
+            _tft.print(timeInfo.shortTimeStr);
+            strncpy(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr));
+        }
+
+        // 3. Barra de segundos fluida (X: 88, Y: 170, Ancho: 144)
+        if (timeInfo.second != _lastSecond) {
+            int barW = 144;
+            int fillW = (timeInfo.second * barW) / 59;
+            if (timeInfo.second == 0) {
+                _tft.fillRect(88, 170, barW, 2, ILI9341_BLACK);
+            }
+            if (fillW > 0) {
+                _tft.fillRect(88, 170, fillW, 2, ILI9341_CYAN);
+            }
+            _lastSecond = timeInfo.second;
+        }
+    } else {
+        // --- Modo Páginas 1 y 2: Reloj en Tarjeta Superior Izquierda ---
+        // 1. Reloj en formato HH:MM (solo se redibuja al cambiar el minuto)
+        if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
+            _tft.fillRect(10, 48, 172, 32, ILI9341_BLACK);
+            _tft.setTextSize(4);
+            _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
+            _tft.setCursor(24, 50);
+            _tft.print(timeInfo.shortTimeStr);
+            strncpy(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr));
+        }
+
+        // 2. Subtítulo: Día de la semana
+        if (strncmp(_lastDayName, timeInfo.dayName, sizeof(_lastDayName)) != 0) {
+            _tft.fillRect(12, 86, 168, 18, ILI9341_BLACK);
+            _tft.setTextSize(2);
+            _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+            _tft.setCursor(12, 88);
+            _tft.print(timeInfo.dayName);
+            strncpy(_lastDayName, timeInfo.dayName, sizeof(_lastDayName));
+        }
+
+        // 3. Barra de segundos fluida (X: 14, Y: 108, Ancho interior: 164)
+        if (timeInfo.second != _lastSecond) {
+            int barX = 14;
+            int barY = 108;
+            int barW = 164;
+            int fillW = (timeInfo.second * barW) / 59;
+            if (timeInfo.second == 0) {
+                _tft.fillRect(barX, barY, barW, 2, ILI9341_BLACK);
+            }
+            if (fillW > 0) {
+                _tft.fillRect(barX, barY, fillW, 2, ILI9341_CYAN);
+            }
+            _lastSecond = timeInfo.second;
+        }
     }
 }
 
 void DisplayUI::updateDate(const DateTimeInfo& timeInfo) {
     if (_isSleeping) return;
 
-    if (strncmp(_lastDateStr, timeInfo.dateStr, sizeof(_lastDateStr)) != 0) {
-        _tft.fillRect(110, 8, 175, 12, COLOR_BG_HEADER);
-        _tft.setTextSize(1);
-        _tft.setTextColor(ILI9341_WHITE, COLOR_BG_HEADER);
-        _tft.setCursor(110, 9);
-        _tft.print(timeInfo.dateStr);
-        strncpy(_lastDateStr, timeInfo.dateStr, sizeof(_lastDateStr));
+    if (_pageMode == 3) {
+        // En Página 3 se muestra la fecha completa con el Santoral en toda la cabecera
+        if (strncmp(_lastDateStr, timeInfo.dateStr, sizeof(_lastDateStr)) != 0) {
+            _tft.fillRect(6, 4, 290, 16, COLOR_BG_HEADER);
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_WHITE, COLOR_BG_HEADER);
+            _tft.setCursor(8, 8);
+            _tft.print(timeInfo.dateStr);
+            strncpy(_lastDateStr, timeInfo.dateStr, sizeof(_lastDateStr));
+        }
+    } else {
+        // En Páginas 1, 2 y 4 se muestra a la derecha de la ciudad
+        if (strncmp(_lastDateStr, timeInfo.shortDateStr, sizeof(_lastDateStr)) != 0) {
+            _tft.fillRect(110, 8, 175, 12, COLOR_BG_HEADER);
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_WHITE, COLOR_BG_HEADER);
+            _tft.setCursor(110, 9);
+            _tft.print(timeInfo.shortDateStr);
+            strncpy(_lastDateStr, timeInfo.shortDateStr, sizeof(_lastDateStr));
+        }
     }
 }
 
 void DisplayUI::updateWeather(const WeatherData& weather, uint8_t pageMode) {
-    if (!weather.valid || _isSleeping || pageMode == 3) return;
+    if (!weather.valid || _isSleeping || pageMode == 4) return;
 
-    // --- Panel Pronóstico Hoy (Superior Derecho) ---
+    if (pageMode == 3) {
+        drawPage3Weather(weather);
+        return;
+    }
+
+    // --- Panel Pronóstico Hoy (Superior Derecho) para Páginas 1 y 2 ---
     // Limpiar zona interior
     _tft.fillRect(195, 48, 118, 80, ILI9341_BLACK);
 
@@ -231,6 +365,137 @@ void DisplayUI::updateWeather(const WeatherData& weather, uint8_t pageMode) {
         drawHourlyForecast(weather);
     } else {
         drawDailyForecast(weather);
+    }
+}
+
+void DisplayUI::drawPage3Weather(const WeatherData& weather) {
+    // ==========================================
+    // 1. COSTADO IZQUIERDO: ESTADO ACTUAL
+    // ==========================================
+    // Limpiar icono y condición
+    _tft.fillRect(5, 44, 60, 44, ILI9341_BLACK);
+    drawWeatherIcon(35, 58, weather.current.iconType, false);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+    char shortCond[11];
+    if (strlen(weather.current.conditionText) > 9) {
+        strncpy(shortCond, weather.current.conditionText, 9);
+        shortCond[9] = '\0';
+    } else {
+        strncpy(shortCond, weather.current.conditionText, sizeof(shortCond));
+    }
+    int condX = 3 + (64 - (strlen(shortCond) * 6)) / 2;
+    _tft.setCursor(condX > 5 ? condX : 5, 78);
+    _tft.print(shortCond);
+
+    // Temperatura actual (formato "15.5°")
+    _tft.fillRect(5, 105, 60, 22, ILI9341_BLACK);
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+    _tft.setCursor(8, 107);
+    _tft.printf("%.1f", weather.current.temperature);
+    _tft.drawCircle(58, 107, 2, ILI9341_ORANGE);
+
+    // Humedad actual
+    _tft.fillRect(5, 144, 60, 22, ILI9341_BLACK);
+    drawWaterDrop(8, 151, ILI9341_CYAN);
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+    _tft.setCursor(18, 147);
+    _tft.printf("%d%%", weather.current.humidity);
+
+    // Índice UV actual
+    _tft.fillRect(5, 184, 60, 34, ILI9341_BLACK);
+    uint16_t uvCol = getUvColor(weather.current.uvIndex);
+    _tft.setTextSize(2);
+    _tft.setTextColor(uvCol, ILI9341_BLACK);
+    _tft.setCursor(8, 185);
+    _tft.printf("%.1f", weather.current.uvIndex);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(uvCol, ILI9341_BLACK);
+    _tft.setCursor(8, 204);
+    _tft.print(getUvCategory(weather.current.uvIndex));
+
+    // ==========================================
+    // 2. PANEL CENTRAL: DETALLE INFERIOR
+    // ==========================================
+    _tft.fillRect(72, 180, 176, 38, ILI9341_BLACK);
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+    int fullCondLen = strlen(weather.current.conditionText);
+    int fullCondX = 70 + (180 - (fullCondLen * 6)) / 2;
+    _tft.setCursor(fullCondX > 72 ? fullCondX : 72, 184);
+    _tft.print(weather.current.conditionText);
+
+    _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+    const char* ntpMsg = "Hora sincronizada NTP";
+    int ntpX = 70 + (180 - (strlen(ntpMsg) * 6)) / 2;
+    _tft.setCursor(ntpX, 200);
+    _tft.print(ntpMsg);
+
+    // ==========================================
+    // 3. COSTADO DERECHO: PRONÓSTICO HOY
+    // ==========================================
+    // Limpiar icono de hoy
+    _tft.fillRect(255, 44, 60, 36, ILI9341_BLACK);
+    drawWeatherIcon(285, 58, weather.today.iconType, false);
+
+    // Temp Máxima
+    _tft.fillRect(255, 96, 60, 18, ILI9341_BLACK);
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_ORANGE, ILI9341_BLACK);
+    _tft.setCursor(257, 97);
+    _tft.printf("%.1f", weather.today.tempMax);
+    _tft.drawCircle(308, 97, 2, ILI9341_ORANGE);
+
+    // Temp Mínima
+    _tft.fillRect(255, 125, 60, 18, ILI9341_BLACK);
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+    _tft.setCursor(257, 126);
+    _tft.printf("%.1f", weather.today.tempMin);
+    _tft.drawCircle(308, 126, 2, ILI9341_CYAN);
+
+    // Condicional: Lluvia vs Índice UV Máximo de Hoy
+    _tft.fillRect(255, 148, 60, 68, ILI9341_BLACK);
+    if (weather.today.precipitation > 0.05f) {
+        // Mostrar lluvia en mm y probabilidad
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(257, 150);
+        _tft.print("LLUVIA");
+
+        _tft.setTextSize(2);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(257, 164);
+        _tft.printf("%.1f", weather.today.precipitation);
+
+        _tft.setTextSize(1);
+        _tft.setCursor(296, 170);
+        _tft.print("mm");
+
+        _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+        _tft.setCursor(257, 192);
+        _tft.printf("%d%%", weather.today.rainProbability);
+    } else {
+        // Mostrar UV Máximo previsto para hoy
+        uint16_t uvMaxCol = getUvColor(weather.today.uvIndexMax);
+        _tft.setTextSize(1);
+        _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+        _tft.setCursor(257, 150);
+        _tft.print("UV MAX");
+
+        _tft.setTextSize(2);
+        _tft.setTextColor(uvMaxCol, ILI9341_BLACK);
+        _tft.setCursor(257, 164);
+        _tft.printf("%.1f", weather.today.uvIndexMax);
+
+        _tft.setTextSize(1);
+        _tft.setTextColor(uvMaxCol, ILI9341_BLACK);
+        _tft.setCursor(257, 192);
+        _tft.print(getUvCategory(weather.today.uvIndexMax));
     }
 }
 

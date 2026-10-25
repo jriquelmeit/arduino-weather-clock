@@ -34,20 +34,20 @@ static unsigned long lastWifiStatusCheck = 0;
 static bool initialWeatherFetched = false;
 
 void switchPage(uint8_t newPage, bool fullRedraw = false) {
+    uint8_t prevPage = currentPage;
     currentPage = newPage;
-    ui.drawBaseLayout(LOCATION_NAME, currentPage, fullRedraw);
+    bool forceFull = fullRedraw || (newPage == 3) || (prevPage == 3);
+    ui.drawBaseLayout(LOCATION_NAME, currentPage, forceFull);
 
     DateTimeInfo dt;
     if (getCurrentDateTime(dt)) {
-        if (fullRedraw) {
-            ui.updateDate(dt);
-        }
-        if (currentPage != 3) {
+        ui.updateDate(dt);
+        if (currentPage != 4) {
             ui.updateTime(dt);
         }
     }
 
-    if (currentPage == 3) {
+    if (currentPage == 4) {
         ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
     } else {
         if (weatherData.valid) {
@@ -55,7 +55,7 @@ void switchPage(uint8_t newPage, bool fullRedraw = false) {
         }
     }
 
-    if (fullRedraw) {
+    if (forceFull) {
         ui.updateWifiStatus(WiFi.status() == WL_CONNECTED, WiFi.RSSI(), WiFi.localIP());
     }
 }
@@ -212,25 +212,25 @@ void loop() {
         timerState = TIMER_UI_IDLE;
         timerRemainingSec = timerSelectedMinutes * 60;
         timerTotalSec = timerRemainingSec;
-        if (currentPage == 3) {
+        if (currentPage == 4) {
             ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
         }
         return;
     }
 
-    // Botón Siguiente (Avanzar página 1 -> 2 -> 3 -> 1)
+    // Botón Siguiente (Avanzar página 1 -> 2 -> 3 -> 4 -> 1)
     if (evNext == BTN_EVENT_SHORT_CLICK) {
         Serial.println(F("[BTN] Siguiente (Next)"));
         if (BUZZER_KEY_BEEP) buzzer.beep(25);
-        uint8_t nextPage = (currentPage >= 3) ? 1 : (currentPage + 1);
+        uint8_t nextPage = (currentPage >= 4) ? 1 : (currentPage + 1);
         switchPage(nextPage, false);
     }
 
-    // Botón Anterior (Retroceder página 1 -> 3 -> 2 -> 1)
+    // Botón Anterior (Retroceder página 1 -> 4 -> 3 -> 2 -> 1)
     if (evPrev == BTN_EVENT_SHORT_CLICK) {
         Serial.println(F("[BTN] Anterior (Prev)"));
         if (BUZZER_KEY_BEEP) buzzer.beep(25);
-        uint8_t prevPage = (currentPage <= 1) ? 3 : (currentPage - 1);
+        uint8_t prevPage = (currentPage <= 1) ? 4 : (currentPage - 1);
         switchPage(prevPage, false);
     }
 
@@ -240,14 +240,14 @@ void loop() {
                       evAction == BTN_EVENT_SHORT_CLICK ? "Click Corto" : "Pulsacion Larga",
                       currentPage);
 
-        if (currentPage == 1 || currentPage == 2) {
-            // En páginas 1 y 2: Pulsación corta apaga la pantalla (Sleep)
+        if (currentPage == 1 || currentPage == 2 || currentPage == 3) {
+            // En páginas 1, 2 y 3: Pulsación corta apaga la pantalla (Sleep)
             if (evAction == BTN_EVENT_SHORT_CLICK) {
                 if (BUZZER_KEY_BEEP) buzzer.beep(30);
                 ui.sleepDisplay();
             }
-        } else if (currentPage == 3) {
-            // En página 3: Control del temporizador
+        } else if (currentPage == 4) {
+            // En página 4: Control del temporizador
             if (timerState == TIMER_UI_IDLE) {
                 if (evAction == BTN_EVENT_SHORT_CLICK) {
                     // Incrementar de 5 en 5 minutos
@@ -289,7 +289,7 @@ void loop() {
                 timerRemainingSec--;
             }
 
-            if (currentPage == 3) {
+            if (currentPage == 4) {
                 ui.updateTimer(timerRemainingSec, timerTotalSec, timerState);
             }
 
@@ -302,9 +302,9 @@ void loop() {
                     ui.wakeDisplay();
                 }
 
-                // Si no estaba en página 3, cambiar a página 3 para mostrar alarma
-                if (currentPage != 3) {
-                    switchPage(3, false);
+                // Si no estaba en página 4, cambiar a página 4 para mostrar alarma
+                if (currentPage != 4) {
+                    switchPage(4, true);
                 } else {
                     ui.updateTimer(0, timerTotalSec, timerState, true);
                 }
@@ -316,7 +316,7 @@ void loop() {
             timerState = TIMER_UI_IDLE;
             timerRemainingSec = timerSelectedMinutes * 60;
             timerTotalSec = timerRemainingSec;
-            if (currentPage == 3) {
+            if (currentPage == 4) {
                 ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
             }
         }
@@ -332,7 +332,7 @@ void loop() {
         DateTimeInfo dt;
         if (getCurrentDateTime(dt)) {
             if (!ui.isSleeping()) {
-                if (currentPage != 3) {
+                if (currentPage != 4) {
                     ui.updateTime(dt);
                 }
                 ui.updateDate(dt);

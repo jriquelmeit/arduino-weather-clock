@@ -59,7 +59,8 @@
 // ==========================================
 // 1: Página 1 (Por defecto) - Reloj + Clima actual + Pronóstico 2 días
 // 2: Página 2               - Reloj + Clima actual + Pronóstico próximas horas
-// 3: Página 3               - Temporizador / Timer
+// 3: Página 3               - Dashboard Central: Reloj Gigante + Santoral + UV
+// 4: Página 4               - Temporizador / Timer
 #define DISPLAY_PAGE_MODE            1
 
 // Para Página 2 (Pronóstico por horas): intervalo de horas entre predicciones

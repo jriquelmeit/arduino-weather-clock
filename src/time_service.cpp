@@ -1,4 +1,5 @@
 #include "time_service.h"
+#include "santoral.h"
 #include <coredecls.h> // for configTime in ESP8266 if needed
 
 static const char* SPANISH_DAYS[] = {
@@ -73,10 +74,28 @@ bool getCurrentDateTime(DateTimeInfo& outInfo) {
     snprintf(outInfo.dayName, sizeof(outInfo.dayName), "%s",
              getSpanishDayName(outInfo.dayOfWeek));
 
-    snprintf(outInfo.dateStr, sizeof(outInfo.dateStr), "%s, %d de %s",
+    snprintf(outInfo.shortDateStr, sizeof(outInfo.shortDateStr), "%s, %d de %s",
              getSpanishDayName(outInfo.dayOfWeek),
              outInfo.day,
              getSpanishMonthName(outInfo.month));
+
+    // Obtener Santo del Día
+    char saintBuf[36];
+    getSaintOfTheDay(outInfo.day, outInfo.month, saintBuf, sizeof(saintBuf));
+    snprintf(outInfo.saintName, sizeof(outInfo.saintName), "%s", saintBuf);
+
+    if (saintBuf[0] != '\0') {
+        snprintf(outInfo.dateStr, sizeof(outInfo.dateStr), "%d de %s %d - %s",
+                 outInfo.day,
+                 getSpanishMonthName(outInfo.month),
+                 outInfo.year,
+                 saintBuf);
+    } else {
+        snprintf(outInfo.dateStr, sizeof(outInfo.dateStr), "%d de %s %d",
+                 outInfo.day,
+                 getSpanishMonthName(outInfo.month),
+                 outInfo.year);
+    }
 
     return true;
 }

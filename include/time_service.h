@@ -13,10 +13,12 @@ struct DateTimeInfo {
     int dayOfWeek; // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
     bool isDST;
 
-    char timeStr[9];      // "HH:MM:SS"
-    char shortTimeStr[6]; // "HH:MM"
-    char dateStr[40];     // "Sábado, 17 de Octubre"
-    char dayName[12];     // "Sábado"
+    char timeStr[9];       // "HH:MM:SS"
+    char shortTimeStr[6];  // "HH:MM"
+    char shortDateStr[40]; // "Sábado, 24 de Octubre"
+    char dateStr[64];      // "24 de Octubre 2026 - S. Antonio M. Claret"
+    char dayName[12];      // "Sábado"
+    char saintName[36];    // "S. Antonio M. Claret"
 };
 
 void initTimeService(const char* tzRule, const char* server1, const char* server2);

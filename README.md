@@ -67,7 +67,31 @@ Página 2 (Modo Horario - DISPLAY_PAGE_MODE = 2):
 | IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
 +---------------------------------------------------------------+
 
-Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
+Página 3 (Modo Dashboard Central - DISPLAY_PAGE_MODE = 3):
++---------------------------------------------------------------+
+| 24 de Octubre 2026 - S. Antonio M. Claret             [||||]  |
++-----------+---------------------------------------+-----------+
+|  ACTUAL   |                                       |    HOY    |
+|           |                SABADO                 |           |
+|    \ /    |  -----------------------------------  |   \ | /   |
+|   --O--   |                                       |  --( O )  |
+|    / \    |                                       |   (____)  |
+|  Despej.  |               1 4 : 3 5               |           |
+|           |                                       |    MAX    |
+|   TEMP    |       (Reloj Gigante Centrado)        |   16.2 C  |
+|  15.5 C   |                                       |           |
+|           |  -----------------------------------  |    MIN    |
+|  HUMEDAD  |  [==== Barra de Segundos (0..59s) ==] |    9.2 C  |
+|  [💧] 49% |                                       |           |
+|           |           Mayormente claro            |  LLUVIA   |
+| INDICE UV |         Hora sincronizada NTP         |   5.6 mm  |
+|    3.5    |                                       |    80%    |
+|   Mod.    |                                       | (o UV MAX)|
++-----------+---------------------------------------+-----------+
+| IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
++---------------------------------------------------------------+
+
+Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 +---------------------------------------------------------------+
 | Santiago          Sabado, 17 de Octubre               [||||]  |
 +---------------------------------------------------------------+
@@ -90,8 +114,9 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
 
 ## Características
 
-- **Navegación Interactiva por Botones:** Navegación cíclica entre páginas (Páginas 1, 2 y 3) mediante botones físicos con filtro antirrebote.
-- **Página de Temporizador (Timer) con Alarma:** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer al llegar a cero.
+- **Navegación Interactiva por Botones:** Navegación cíclica entre 4 páginas (Páginas 1, 2, 3 y 4) mediante botones físicos con filtro antirrebote.
+- **Página 3 (Dashboard Central con Reloj Gigante):** Vista con Reloj Gigante en verde lima, barra de segundos fluida (0..59s), Santoral católico del día, condición, temperatura, humedad e Índice UV actual y máximo proyectado.
+- **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer al llegar a cero.
 - **Apagado y Modo Noche (Sleep Mode):** Apagado manual de pantalla mediante el botón de acción en las páginas de reloj y clima, o apagado programado automático por horario (modo nocturno). Reactivación instantánea al pulsar cualquier botón.
 - **Sincronización NTP y Reglas POSIX:** Obtención automática de fecha y hora local con cálculo de cambio de horario estacional (horario de verano e invierno) en el microcontrolador sin llamadas web adicionales.
 - **Pronóstico Meteorológico Completo:** Temperatura actual, porcentaje de humedad, condición del cielo y pronóstico de los 2 días posteriores (mínimas y máximas).
@@ -215,12 +240,13 @@ Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sl
 
 | Botón | Pantalla Activa | Pulsación Corta (Click) | Pulsación Larga (> 1 seg) |
 | :--- | :--- | :--- | :--- |
-| **Botón 1 (Prev / D1)** | Cualquiera | Retroceder página ($3 \rightarrow 2 \rightarrow 1 \rightarrow 3$) | - |
-| **Botón 2 (Next / D2)** | Cualquiera | Avanzar página ($1 \rightarrow 2 \rightarrow 3 \rightarrow 1$) | - |
+| **Botón 1 (Prev / D1)** | Cualquiera | Retroceder página ($4 \rightarrow 3 \rightarrow 2 \rightarrow 1 \rightarrow 4$) | - |
+| **Botón 2 (Next / D2)** | Cualquiera | Avanzar página ($1 \rightarrow 2 \rightarrow 3 \rightarrow 4 \rightarrow 1$) | - |
 | **Botón 3 (Action / D6)** | Página 1 (Diario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 2 (Horario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
-| **Botón 3 (Action / D6)** | Página 3 (Timer - Ajuste) | Sumar tiempo (**+5 min**) | **Iniciar conteo regresivo** |
-| **Botón 3 (Action / D6)** | Página 3 (Timer - Conteo) | **Detener / Cancelar** conteo | - |
+| **Botón 3 (Action / D6)** | Página 3 (Dashboard Central) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
+| **Botón 3 (Action / D6)** | Página 4 (Timer - Ajuste) | Sumar tiempo (**+5 min**) | **Iniciar conteo regresivo** |
+| **Botón 3 (Action / D6)** | Página 4 (Timer - Conteo) | **Detener / Cancelar** conteo | - |
 | **Cualquier Botón** | Alarma sonando | **Silenciar alarma del buzzer** | Silenciar alarma del buzzer |
 | **Cualquier Botón** | Pantalla en reposo (Sleep) | **Encender pantalla / Despertar** | Encender pantalla / Despertar |
 
