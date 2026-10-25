@@ -120,7 +120,7 @@ Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 - **Navegación Interactiva por Botones:** Navegación cíclica entre 4 páginas (Páginas 1, 2, 3 y 4) mediante botones físicos con filtro antirrebote.
 - **Página 3 (Dashboard Central con Reloj Gigante):** Vista con Reloj Gigante en verde lima, barra de segundos fluida (0..59s), Santoral católico del día, condición, temperatura, humedad e Índice UV actual y máximo proyectado.
 - **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer o parlante al llegar a cero.
-- **Audio Polifónico y Melodías Retro:** Soporte para buzzer activo o parlante de cono de 8Ω (0.5W a 2W) mediante transistor NPN (2N2222). Generación de frecuencias reales con `tone()` para reproducir melodías retro completas (La Marcha Imperial de Star Wars o Super Mario Bros) con cancelación interactiva por botones.
+- **Audio Polifónico y 13 Melodías Retro:** Soporte para buzzer activo o parlante de cono de 8Ω (0.5W a 2W) mediante transistor NPN (2N2222). Generación de frecuencias reales con `tone()` para reproducir 13 melodías completas estilo chiptune (Star Wars, Super Mario Bros, The Legend of Zelda, Tetris, Pac-Man, Nokia Tune, Cantina Band, Doom, Casio Beep, Volver al Futuro, Los Simpson, Sonic the Hedgehog y Alien) con cancelación interactiva por botones o desde la web.
 - **Apagado y Modo Noche (Sleep Mode):** Apagado manual de pantalla mediante el botón de acción en las páginas de reloj y clima, o apagado programado automático por horario (modo nocturno). Reactivación instantánea al pulsar cualquier botón.
 - **Sincronización NTP y Reglas POSIX:** Obtención automática de fecha y hora local con cálculo de cambio de horario estacional (horario de verano e invierno) en el microcontrolador sin llamadas web adicionales.
 - **Pronóstico Meteorológico Completo:** Temperatura actual, porcentaje de humedad, condición del cielo y pronóstico de los 2 días posteriores (mínimas y máximas).
@@ -379,9 +379,20 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 * **Parámetros soportados:**
   * **Probar alarma acústica:** `?action=test` (reproduce la melodía por 8 segundos)
   * **Silenciar alarma:** `?action=stop` (detiene el sonido inmediatamente)
-  * **Cambiar melodía predeterminada:** `?action=set&melody={1|2}`
+  * **Cambiar melodía predeterminada:** `?action=set&melody={1..13}`
     * `1`: Star Wars (La Marcha Imperial)
     * `2`: Super Mario Bros (Overworld Theme)
+    * `3`: The Legend of Zelda (Main Theme Overworld)
+    * `4`: Tetris (Korobeiniki - Type A)
+    * `5`: Pac-Man (Intro Arcade)
+    * `6`: Nokia Tune (Gran Vals de Tárrega)
+    * `7`: Star Wars: Cantina Band
+    * `8`: Doom (E1M1 / At Doom's Gate)
+    * `9`: Alarma Digital (Casio Beep)
+    * `10`: Volver al Futuro (Back to the Future - Tema Principal)
+    * `11`: Los Simpson (The Simpsons Theme - Danny Elfman)
+    * `12`: Sonic the Hedgehog (Green Hill Zone)
+    * `13`: Alien (Tema Principal - Jerry Goldsmith)
 * **Ejemplos (curl):**
   ```bash
   # Seleccionar Super Mario Bros como melodía de alarma

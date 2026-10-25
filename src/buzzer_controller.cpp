@@ -171,6 +171,408 @@ static const MelodyStep MELODY_MARIO_STEPS[] = {
 };
 static const uint16_t MARIO_LENGTH = sizeof(MELODY_MARIO_STEPS) / sizeof(MELODY_MARIO_STEPS[0]);
 
+// ----------------------------------------------------
+// 3. MELODÍA: The Legend of Zelda (Main Theme Overworld)
+// ----------------------------------------------------
+static const MelodyStep MELODY_ZELDA_STEPS[] = {
+    // Fanfarria inicial
+    { NOTE_AS4, 380 }, { 0, 40 },
+    { NOTE_F4, 200 }, { 0, 40 },
+    { NOTE_AS4, 160 }, { 0, 40 },
+    { NOTE_AS4, 100 }, { 0, 40 },
+    { NOTE_C5, 100 }, { 0, 40 },
+    { NOTE_D5, 100 }, { 0, 40 },
+    { NOTE_DS5, 100 }, { 0, 40 },
+    { NOTE_F5, 600 }, { 0, 160 },
+
+    // Tema principal
+    { NOTE_F5, 240 }, { 0, 40 },
+    { NOTE_F5, 160 }, { 0, 40 },
+    { NOTE_F5, 100 }, { 0, 40 },
+    { NOTE_FS5, 140 }, { 0, 40 },
+    { NOTE_GS5, 140 }, { 0, 40 },
+    { NOTE_AS5, 600 }, { 0, 160 },
+
+    // Respuesta y bajada
+    { NOTE_AS5, 220 }, { 0, 40 },
+    { NOTE_AS5, 140 }, { 0, 40 },
+    { NOTE_GS5, 140 }, { 0, 40 },
+    { NOTE_FS5, 140 }, { 0, 40 },
+    { NOTE_GS5, 380 }, { 0, 80 },
+    { NOTE_FS5, 180 }, { 0, 40 },
+    { NOTE_F5, 600 }, { 0, 500 }
+};
+static const uint16_t ZELDA_LENGTH = sizeof(MELODY_ZELDA_STEPS) / sizeof(MELODY_ZELDA_STEPS[0]);
+
+// ----------------------------------------------------
+// 4. MELODÍA: Tetris (Korobeiniki - Type A)
+// ----------------------------------------------------
+static const MelodyStep MELODY_TETRIS_STEPS[] = {
+    { NOTE_E5, 350 }, { 0, 50 },
+    { NOTE_B4, 180 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_D5, 350 }, { 0, 50 },
+    { NOTE_C5, 180 }, { 0, 50 },
+    { NOTE_B4, 200 }, { 0, 50 },
+    { NOTE_A4, 350 }, { 0, 50 },
+    { NOTE_A4, 180 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_E5, 350 }, { 0, 50 },
+    { NOTE_D5, 180 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_B4, 450 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_D5, 350 }, { 0, 50 },
+    { NOTE_E5, 350 }, { 0, 50 },
+    { NOTE_C5, 350 }, { 0, 50 },
+    { NOTE_A4, 350 }, { 0, 50 },
+    { NOTE_A4, 450 }, { 0, 250 },
+
+    // Parte B rápida
+    { NOTE_D5, 350 }, { 0, 50 },
+    { NOTE_F5, 200 }, { 0, 50 },
+    { NOTE_A5, 350 }, { 0, 50 },
+    { NOTE_G5, 180 }, { 0, 50 },
+    { NOTE_F5, 200 }, { 0, 50 },
+    { NOTE_E5, 450 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_E5, 350 }, { 0, 50 },
+    { NOTE_D5, 180 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_B4, 350 }, { 0, 50 },
+    { NOTE_B4, 180 }, { 0, 50 },
+    { NOTE_C5, 200 }, { 0, 50 },
+    { NOTE_D5, 350 }, { 0, 50 },
+    { NOTE_E5, 350 }, { 0, 50 },
+    { NOTE_C5, 350 }, { 0, 50 },
+    { NOTE_A4, 350 }, { 0, 50 },
+    { NOTE_A4, 500 }, { 0, 500 }
+};
+static const uint16_t TETRIS_LENGTH = sizeof(MELODY_TETRIS_STEPS) / sizeof(MELODY_TETRIS_STEPS[0]);
+
+// ----------------------------------------------------
+// 5. MELODÍA: Pac-Man (Intro Arcade)
+// ----------------------------------------------------
+static const MelodyStep MELODY_PACMAN_STEPS[] = {
+    { NOTE_B4, 120 }, { 0, 20 },
+    { NOTE_B5, 120 }, { 0, 20 },
+    { NOTE_FS5, 120 }, { 0, 20 },
+    { NOTE_DS5, 120 }, { 0, 20 },
+    { NOTE_B5, 100 }, { 0, 20 },
+    { NOTE_FS5, 150 }, { 0, 20 },
+    { NOTE_DS5, 200 }, { 0, 50 },
+
+    { NOTE_C5, 120 }, { 0, 20 },
+    { NOTE_C6, 120 }, { 0, 20 },
+    { NOTE_G5, 120 }, { 0, 20 },
+    { NOTE_E5, 120 }, { 0, 20 },
+    { NOTE_C6, 100 }, { 0, 20 },
+    { NOTE_G5, 150 }, { 0, 20 },
+    { NOTE_E5, 200 }, { 0, 50 },
+
+    { NOTE_B4, 120 }, { 0, 20 },
+    { NOTE_B5, 120 }, { 0, 20 },
+    { NOTE_FS5, 120 }, { 0, 20 },
+    { NOTE_DS5, 120 }, { 0, 20 },
+    { NOTE_B5, 100 }, { 0, 20 },
+    { NOTE_FS5, 150 }, { 0, 20 },
+    { NOTE_DS5, 200 }, { 0, 50 },
+
+    // Escala cromática final
+    { NOTE_DS5, 80 }, { 0, 20 },
+    { NOTE_E5, 80 }, { 0, 20 },
+    { NOTE_F5, 80 }, { 0, 20 },
+    { NOTE_FS5, 80 }, { 0, 20 },
+    { NOTE_G5, 80 }, { 0, 20 },
+    { NOTE_GS5, 80 }, { 0, 20 },
+    { NOTE_A5, 80 }, { 0, 20 },
+    { NOTE_AS5, 80 }, { 0, 20 },
+    { NOTE_B5, 300 }, { 0, 400 }
+};
+static const uint16_t PACMAN_LENGTH = sizeof(MELODY_PACMAN_STEPS) / sizeof(MELODY_PACMAN_STEPS[0]);
+
+// ----------------------------------------------------
+// 6. MELODÍA: Nokia Tune (Gran Vals)
+// ----------------------------------------------------
+static const MelodyStep MELODY_NOKIA_STEPS[] = {
+    { NOTE_E5, 140 }, { 0, 30 },
+    { NOTE_D5, 140 }, { 0, 30 },
+    { NOTE_FS4, 250 }, { 0, 50 },
+    { NOTE_GS4, 250 }, { 0, 50 },
+    { NOTE_CS5, 140 }, { 0, 30 },
+    { NOTE_B4, 140 }, { 0, 30 },
+    { NOTE_D4, 250 }, { 0, 50 },
+    { NOTE_E4, 250 }, { 0, 50 },
+    { NOTE_B4, 140 }, { 0, 30 },
+    { NOTE_A4, 140 }, { 0, 30 },
+    { NOTE_CS4, 250 }, { 0, 50 },
+    { NOTE_E4, 250 }, { 0, 50 },
+    { NOTE_A4, 500 }, { 0, 500 }
+};
+static const uint16_t NOKIA_LENGTH = sizeof(MELODY_NOKIA_STEPS) / sizeof(MELODY_NOKIA_STEPS[0]);
+
+// ----------------------------------------------------
+// 7. MELODÍA: Star Wars - Cantina Band
+// ----------------------------------------------------
+static const MelodyStep MELODY_CANTINA_STEPS[] = {
+    { NOTE_A4, 200 }, { 0, 50 },
+    { NOTE_D5, 200 }, { 0, 50 },
+    { NOTE_A4, 200 }, { 0, 50 },
+    { NOTE_D5, 200 }, { 0, 50 },
+    { NOTE_A4, 150 }, { 0, 50 },
+    { NOTE_D5, 150 }, { 0, 50 },
+    { NOTE_A4, 200 }, { 0, 100 },
+
+    { NOTE_GS4, 180 }, { 0, 40 },
+    { NOTE_A4, 180 }, { 0, 40 },
+    { NOTE_A4, 180 }, { 0, 40 },
+    { NOTE_GS4, 180 }, { 0, 40 },
+    { NOTE_A4, 180 }, { 0, 40 },
+    { NOTE_G4, 250 }, { 0, 100 },
+
+    { NOTE_FS4, 180 }, { 0, 40 },
+    { NOTE_G4, 180 }, { 0, 40 },
+    { NOTE_FS4, 180 }, { 0, 40 },
+    { NOTE_F4, 250 }, { 0, 50 },
+    { NOTE_D4, 350 }, { 0, 250 },
+
+    { NOTE_A4, 200 }, { 0, 50 },
+    { NOTE_D5, 200 }, { 0, 50 },
+    { NOTE_A4, 200 }, { 0, 50 },
+    { NOTE_D5, 200 }, { 0, 50 },
+    { NOTE_A4, 150 }, { 0, 50 },
+    { NOTE_D5, 150 }, { 0, 50 },
+    { NOTE_A4, 200 }, { 0, 100 },
+
+    { NOTE_GS4, 180 }, { 0, 40 },
+    { NOTE_A4, 180 }, { 0, 40 },
+    { NOTE_C5, 250 }, { 0, 50 },
+    { NOTE_B4, 250 }, { 0, 50 },
+    { NOTE_A4, 250 }, { 0, 50 },
+    { NOTE_G4, 250 }, { 0, 50 },
+    { NOTE_E4, 450 }, { 0, 450 }
+};
+static const uint16_t CANTINA_LENGTH = sizeof(MELODY_CANTINA_STEPS) / sizeof(MELODY_CANTINA_STEPS[0]);
+
+// ----------------------------------------------------
+// 8. MELODÍA: Doom (E1M1 / At Doom's Gate)
+// ----------------------------------------------------
+static const MelodyStep MELODY_DOOM_STEPS[] = {
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_D4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_C4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_AS3, 150 }, { 0, 40 },
+    { NOTE_B3, 150 }, { 0, 40 },
+
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_D4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_C4, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_E3, 140 }, { 0, 40 },
+    { NOTE_B3, 200 }, { 0, 50 },
+    { NOTE_C4, 220 }, { 0, 300 }
+};
+static const uint16_t DOOM_LENGTH = sizeof(MELODY_DOOM_STEPS) / sizeof(MELODY_DOOM_STEPS[0]);
+
+// ----------------------------------------------------
+// 9. MELODÍA: Alarma Digital / Casio Beep
+// ----------------------------------------------------
+static const MelodyStep MELODY_CASIO_STEPS[] = {
+    // Ráfaga 1: bip-bip suave
+    { NOTE_B5, 80 }, { 0, 60 },
+    { NOTE_B5, 80 }, { 0, 350 },
+
+    // Ráfaga 2: bip-bip suave
+    { NOTE_B5, 80 }, { 0, 60 },
+    { NOTE_B5, 80 }, { 0, 350 },
+
+    // Ráfaga 3: cuatro bips rápidos
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 250 },
+
+    // Ráfaga 4: cuatro bips continuos
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 50 },
+    { NOTE_B5, 70 }, { 0, 500 }
+};
+static const uint16_t CASIO_LENGTH = sizeof(MELODY_CASIO_STEPS) / sizeof(MELODY_CASIO_STEPS[0]);
+
+// ----------------------------------------------------
+// 10. MELODÍA: Volver al Futuro (Back to the Future - Main Theme)
+// ----------------------------------------------------
+static const MelodyStep MELODY_BTTF_STEPS[] = {
+    // Frase 1: Motivo heroico lidio de apertura
+    { NOTE_C4, 400 }, { 0, 50 },
+    { NOTE_FS4, 550 }, { 0, 50 },
+    { NOTE_G4, 250 }, { 0, 50 },
+    { NOTE_C5, 750 }, { 0, 150 },
+
+    // Bajada y resolución
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_A4, 200 }, { 0, 40 },
+    { NOTE_B4, 300 }, { 0, 40 },
+    { NOTE_C5, 300 }, { 0, 40 },
+    { NOTE_G4, 600 }, { 0, 250 },
+
+    // Frase 2: Segunda llamada heroica elevándose
+    { NOTE_C4, 400 }, { 0, 50 },
+    { NOTE_FS4, 550 }, { 0, 50 },
+    { NOTE_G4, 250 }, { 0, 50 },
+    { NOTE_C5, 750 }, { 0, 150 },
+
+    // Variación ascendente al clímax
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_A4, 200 }, { 0, 40 },
+    { NOTE_B4, 300 }, { 0, 40 },
+    { NOTE_C5, 300 }, { 0, 40 },
+    { NOTE_D5, 800 }, { 0, 250 },
+
+    // Frase 3: La marcha triunfal (88 MPH)
+    { NOTE_E5, 450 }, { 0, 50 },
+    { NOTE_D5, 250 }, { 0, 50 },
+    { NOTE_C5, 400 }, { 0, 50 },
+    { NOTE_B4, 250 }, { 0, 50 },
+    { NOTE_A4, 400 }, { 0, 50 },
+    { NOTE_G4, 250 }, { 0, 50 },
+    { NOTE_G4, 200 }, { 0, 40 },
+    { NOTE_A4, 200 }, { 0, 40 },
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_C5, 850 }, { 0, 500 }
+};
+static const uint16_t BTTF_LENGTH = sizeof(MELODY_BTTF_STEPS) / sizeof(MELODY_BTTF_STEPS[0]);
+
+// ----------------------------------------------------
+// 11. MELODÍA: Los Simpson (The Simpsons Theme - Danny Elfman)
+// ----------------------------------------------------
+static const MelodyStep MELODY_SIMPSONS_STEPS[] = {
+    // Frase 1: "The Simp-sons..." (Lidio)
+    { NOTE_C4, 450 }, { 0, 80 },
+    { NOTE_E4, 450 }, { 0, 80 },
+    { NOTE_FS4, 450 }, { 0, 80 },
+    { NOTE_A4, 600 }, { 0, 150 },
+
+    // Bajada cómica
+    { NOTE_G4, 300 }, { 0, 40 },
+    { NOTE_E4, 300 }, { 0, 40 },
+    { NOTE_C4, 300 }, { 0, 40 },
+    { NOTE_A3, 300 }, { 0, 60 },
+
+    // Tres notas repetidas en Fa sostenido
+    { NOTE_FS3, 180 }, { 0, 40 },
+    { NOTE_FS3, 180 }, { 0, 40 },
+    { NOTE_FS3, 180 }, { 0, 40 },
+    { NOTE_G3, 500 }, { 0, 250 },
+
+    // Riff rápido
+    { NOTE_FS3, 150 }, { 0, 30 },
+    { NOTE_FS3, 150 }, { 0, 30 },
+    { NOTE_FS3, 150 }, { 0, 30 },
+    { NOTE_G3, 300 }, { 0, 50 },
+    { NOTE_AS3, 200 }, { 0, 30 },
+    { NOTE_B3, 200 }, { 0, 30 },
+    { NOTE_C4, 400 }, { 0, 100 },
+
+    // Repetición brillante final
+    { NOTE_C4, 250 }, { 0, 30 },
+    { NOTE_E4, 250 }, { 0, 30 },
+    { NOTE_FS4, 250 }, { 0, 30 },
+    { NOTE_A4, 450 }, { 0, 60 },
+    { NOTE_G4, 250 }, { 0, 30 },
+    { NOTE_E4, 250 }, { 0, 30 },
+    { NOTE_C4, 250 }, { 0, 30 },
+    { NOTE_A3, 400 }, { 0, 500 }
+};
+static const uint16_t SIMPSONS_LENGTH = sizeof(MELODY_SIMPSONS_STEPS) / sizeof(MELODY_SIMPSONS_STEPS[0]);
+
+// ----------------------------------------------------
+// 12. MELODÍA: Sonic the Hedgehog (Green Hill Zone)
+// ----------------------------------------------------
+static const MelodyStep MELODY_SONIC_STEPS[] = {
+    // Intro enérgica
+    { NOTE_G5, 180 }, { 0, 40 },
+    { NOTE_E5, 180 }, { 0, 40 },
+    { NOTE_F5, 180 }, { 0, 40 },
+    { NOTE_G5, 250 }, { 0, 50 },
+    { NOTE_E5, 180 }, { 0, 40 },
+    { NOTE_F5, 180 }, { 0, 40 },
+    { NOTE_G5, 300 }, { 0, 60 },
+
+    // Ascenso de notas
+    { NOTE_C5, 200 }, { 0, 40 },
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_C5, 200 }, { 0, 40 },
+    { NOTE_D5, 200 }, { 0, 40 },
+    { NOTE_E5, 200 }, { 0, 40 },
+    { NOTE_F5, 350 }, { 0, 100 },
+
+    // Frase principal Green Hill Zone
+    { NOTE_G5, 350 }, { 0, 50 },
+    { NOTE_E5, 250 }, { 0, 40 },
+    { NOTE_D5, 250 }, { 0, 40 },
+    { NOTE_C5, 350 }, { 0, 50 },
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_C5, 200 }, { 0, 40 },
+    { NOTE_D5, 450 }, { 0, 80 },
+
+    { NOTE_C5, 250 }, { 0, 40 },
+    { NOTE_B4, 250 }, { 0, 40 },
+    { NOTE_A4, 250 }, { 0, 40 },
+    { NOTE_G4, 350 }, { 0, 50 },
+    { NOTE_A4, 200 }, { 0, 40 },
+    { NOTE_B4, 200 }, { 0, 40 },
+    { NOTE_C5, 600 }, { 0, 500 }
+};
+static const uint16_t SONIC_LENGTH = sizeof(MELODY_SONIC_STEPS) / sizeof(MELODY_SONIC_STEPS[0]);
+
+// ----------------------------------------------------
+// 13. MELODÍA: Alien (Tema Principal - Jerry Goldsmith)
+// ----------------------------------------------------
+static const MelodyStep MELODY_ALIEN_STEPS[] = {
+    // Frase 1: La soledad inquietante en el espacio profundo
+    { NOTE_C5, 400 }, { 0, 80 },
+    { NOTE_DS5, 400 }, { 0, 80 },
+    { NOTE_D5, 700 }, { 0, 200 },
+    { NOTE_GS4, 450 }, { 0, 80 },
+    { NOTE_G4, 900 }, { 0, 300 },
+
+    // Frase 2: El eco lejano de la Nostromo
+    { NOTE_C5, 400 }, { 0, 80 },
+    { NOTE_DS5, 400 }, { 0, 80 },
+    { NOTE_D5, 700 }, { 0, 200 },
+    { NOTE_AS4, 450 }, { 0, 80 },
+    { NOTE_A4, 900 }, { 0, 250 },
+
+    // Frase 3: La tensión del xenomorfo acechando (crescendo)
+    { NOTE_CS4, 150 }, { 0, 50 },
+    { NOTE_D4, 150 }, { 0, 50 },
+    { NOTE_CS4, 150 }, { 0, 50 },
+    { NOTE_D4, 150 }, { 0, 50 },
+    { NOTE_DS4, 200 }, { 0, 50 },
+    { NOTE_E4, 200 }, { 0, 50 },
+    { NOTE_F4, 250 }, { 0, 50 },
+    { NOTE_FS4, 300 }, { 0, 80 },
+    { NOTE_G4, 600 }, { 0, 100 },
+    { NOTE_C5, 950 }, { 0, 600 }
+};
+static const uint16_t ALIEN_LENGTH = sizeof(MELODY_ALIEN_STEPS) / sizeof(MELODY_ALIEN_STEPS[0]);
+
 BuzzerController::BuzzerController(uint8_t pin, uint8_t melodyType)
     : _pin(pin),
       _melodyType(melodyType),
@@ -193,17 +595,41 @@ void BuzzerController::setMelodyType(uint8_t melodyType) {
 }
 
 const MelodyStep* BuzzerController::getActiveMelody() const {
-    if (_melodyType == MELODY_MARIO) {
-        return MELODY_MARIO_STEPS;
+    switch (_melodyType) {
+        case MELODY_MARIO:      return MELODY_MARIO_STEPS;
+        case MELODY_ZELDA:      return MELODY_ZELDA_STEPS;
+        case MELODY_TETRIS:     return MELODY_TETRIS_STEPS;
+        case MELODY_PACMAN:     return MELODY_PACMAN_STEPS;
+        case MELODY_NOKIA:      return MELODY_NOKIA_STEPS;
+        case MELODY_CANTINA:    return MELODY_CANTINA_STEPS;
+        case MELODY_DOOM:       return MELODY_DOOM_STEPS;
+        case MELODY_CASIO_BEEP: return MELODY_CASIO_STEPS;
+        case MELODY_BTTF:       return MELODY_BTTF_STEPS;
+        case MELODY_SIMPSONS:   return MELODY_SIMPSONS_STEPS;
+        case MELODY_SONIC:      return MELODY_SONIC_STEPS;
+        case MELODY_ALIEN:      return MELODY_ALIEN_STEPS;
+        case MELODY_STAR_WARS:
+        default:                return MELODY_STAR_WARS_STEPS;
     }
-    return MELODY_STAR_WARS_STEPS;
 }
 
 uint16_t BuzzerController::getActiveMelodyLength() const {
-    if (_melodyType == MELODY_MARIO) {
-        return MARIO_LENGTH;
+    switch (_melodyType) {
+        case MELODY_MARIO:      return MARIO_LENGTH;
+        case MELODY_ZELDA:      return ZELDA_LENGTH;
+        case MELODY_TETRIS:     return TETRIS_LENGTH;
+        case MELODY_PACMAN:     return PACMAN_LENGTH;
+        case MELODY_NOKIA:      return NOKIA_LENGTH;
+        case MELODY_CANTINA:    return CANTINA_LENGTH;
+        case MELODY_DOOM:       return DOOM_LENGTH;
+        case MELODY_CASIO_BEEP: return CASIO_LENGTH;
+        case MELODY_BTTF:       return BTTF_LENGTH;
+        case MELODY_SIMPSONS:   return SIMPSONS_LENGTH;
+        case MELODY_SONIC:      return SONIC_LENGTH;
+        case MELODY_ALIEN:      return ALIEN_LENGTH;
+        case MELODY_STAR_WARS:
+        default:                return STAR_WARS_LENGTH;
     }
-    return STAR_WARS_LENGTH;
 }
 
 void BuzzerController::playStartupMelody(int stopPin1, int stopPin2, int stopPin3) {

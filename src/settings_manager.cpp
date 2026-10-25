@@ -1,5 +1,6 @@
 #include "settings_manager.h"
 #include "config.h"
+#include "buzzer_controller.h"
 
 void AppSettings::setDefaults() {
     strncpy(wifiSsid, WIFI_SSID, sizeof(wifiSsid) - 1);
@@ -21,14 +22,14 @@ void AppSettings::setDefaults() {
     if (defaultPage < 1 || defaultPage > 4) defaultPage = 1;
 
     alarmMelody = ALARM_MELODY_TYPE;
-    if (alarmMelody < 1 || alarmMelody > 2) alarmMelody = 1;
+    if (alarmMelody < 1 || alarmMelody > MELODY_MAX_TYPE) alarmMelody = 1;
 }
 
 bool AppSettings::isValid() const {
     if (strlen(wifiSsid) == 0) return false;
     if (strlen(locationLat) == 0 || strlen(locationLon) == 0) return false;
     if (defaultPage < 1 || defaultPage > 4) return false;
-    if (alarmMelody < 1 || alarmMelody > 2) return false;
+    if (alarmMelody < 1 || alarmMelody > MELODY_MAX_TYPE) return false;
     return true;
 }
 
@@ -110,7 +111,7 @@ bool SettingsManager::load() {
     if (page >= 1 && page <= 4) {
         _settings.defaultPage = page;
     }
-    if (melody >= 1 && melody <= 2) {
+    if (melody >= 1 && melody <= MELODY_MAX_TYPE) {
         _settings.alarmMelody = melody;
     }
 
@@ -187,7 +188,7 @@ void SettingsManager::setDefaultPage(uint8_t page) {
 }
 
 void SettingsManager::setAlarmMelody(uint8_t melody) {
-    if (melody >= 1 && melody <= 2) {
+    if (melody >= 1 && melody <= MELODY_MAX_TYPE) {
         _settings.alarmMelody = melody;
     }
 }

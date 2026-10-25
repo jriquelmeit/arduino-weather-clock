@@ -85,6 +85,17 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
         <select id="melody" name="melody">
           <option value="1">Star Wars (Marcha Imperial)</option>
           <option value="2">Super Mario Bros (Overworld)</option>
+          <option value="3">The Legend of Zelda (Main Theme)</option>
+          <option value="4">Tetris (Korobeiniki)</option>
+          <option value="5">Pac-Man (Intro Arcade)</option>
+          <option value="6">Nokia Tune (Gran Vals)</option>
+          <option value="7">Star Wars: Cantina Band</option>
+          <option value="8">Doom (E1M1 At Doom's Gate)</option>
+          <option value="9">Alarma Digital (Casio Beep)</option>
+          <option value="10">Volver al Futuro (Back to the Future)</option>
+          <option value="11">Los Simpson (The Simpsons Theme)</option>
+          <option value="12">Sonic the Hedgehog (Green Hill Zone)</option>
+          <option value="13">Alien (Tema Principal - Jerry Goldsmith)</option>
         </select>
       </div>
       <div class="form-group">
@@ -295,6 +306,17 @@ body{background:var(--bg);color:var(--text);display:flex;justify-content:center;
     <select id="melody_sel" class="form-select" onchange="changeMelody(this.value)">
       <option value="1">Star Wars (Marcha Imperial)</option>
       <option value="2">Super Mario Bros (Overworld)</option>
+      <option value="3">The Legend of Zelda (Main Theme)</option>
+      <option value="4">Tetris (Korobeiniki)</option>
+      <option value="5">Pac-Man (Intro Arcade)</option>
+      <option value="6">Nokia Tune (Gran Vals)</option>
+      <option value="7">Star Wars: Cantina Band</option>
+      <option value="8">Doom (E1M1 At Doom's Gate)</option>
+      <option value="9">Alarma Digital (Casio Beep)</option>
+      <option value="10">Volver al Futuro (Back to the Future)</option>
+      <option value="11">Los Simpson (The Simpsons Theme)</option>
+      <option value="12">Sonic the Hedgehog (Green Hill Zone)</option>
+      <option value="13">Alien (Tema Principal - Jerry Goldsmith)</option>
     </select>
     <div class="grid-2">
       <button class="btn btn-warning" onclick="testAlarm()">Probar Alarma</button>
@@ -605,7 +627,7 @@ void WebServerService::handleSaveConfig() {
     uint8_t melody = _server.arg("melody").toInt();
     uint8_t page = _server.arg("page").toInt();
 
-    if (melody < 1 || melody > 2) melody = 1;
+    if (melody < 1 || melody > 13) melody = 1;
     if (page < 1 || page > 4) page = 1;
 
     Serial.printf("[Web] Recibidos nuevos parametros: SSID=%s, Ciudad=%s, Lat=%s, Lon=%s, Melodia=%d, Pagina=%d\n",
@@ -750,7 +772,7 @@ void WebServerService::handleApiAlarm() {
         return;
     } else if (action == "set") {
         uint8_t m = _server.arg("melody").toInt();
-        if (m >= 1 && m <= 2) {
+        if (m >= 1 && m <= 13) {
             if (_cb.onSetMelody) _cb.onSetMelody(m);
             _settings.setAlarmMelody(m);
             _settings.save();

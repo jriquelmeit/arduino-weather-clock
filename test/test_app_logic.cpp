@@ -260,7 +260,7 @@ bool validateConfigData(const char* ssid, const char* lat, const char* lon, uint
     if (!lat || strlen(lat) == 0) return false;
     if (!lon || strlen(lon) == 0) return false;
     if (page < 1 || page > 4) return false;
-    if (melody < 1 || melody > 2) return false;
+    if (melody < 1 || melody > 13) return false;
     return true;
 }
 
@@ -328,9 +328,14 @@ void test_settings_validation(void) {
     TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 0, 1));
     TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 5, 1));
 
-    // Melodía fuera de rango (0 o 3) -> inválido
+    // Melodía fuera de rango (0 o 14) -> inválido
     TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 0));
-    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 3));
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 14));
+
+    // Melodías válidas (1 a 13)
+    TEST_ASSERT_TRUE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 1));
+    TEST_ASSERT_TRUE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 7));
+    TEST_ASSERT_TRUE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 13));
 }
 
 void test_web_api_timer_validation(void) {
