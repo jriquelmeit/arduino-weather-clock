@@ -115,7 +115,7 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
 | **Pantalla TFT** | **DC / RS** | **D3** | GPIO0 | Selección de Datos / Comando |
 | **Pantalla TFT** | **SDI (MOSI)** | **D7** | GPIO13 | Bus HSPI - Datos hacia la pantalla |
 | **Pantalla TFT** | **SCK (CLK)** | **D5** | GPIO14 | Bus HSPI - Reloj SPI |
-| **Pantalla TFT** | **LED** | **3V3** ó Transistor NPN | - / GPIO3 (RX) | Retroiluminación (directo a 3V3 ó con 2N2222 en pin RX) |
+| **Pantalla TFT** | **LED** | **3V3** ó Transistor NPN | - / GPIO3 (RX) | Retroiluminación (directo a 3V3 ó con 2N2222/2N3904 en pin RX) |
 | **Botón 1 (Prev)** | Terminal A / GND | **D1** | GPIO5 | `INPUT_PULLUP` - Retroceder página |
 | **Botón 2 (Next)** | Terminal A / GND | **D2** | GPIO4 | `INPUT_PULLUP` - Avanzar página |
 | **Botón 3 (Action)** | Terminal A / GND | **D6** | GPIO12 | `INPUT_PULLUP` - Ajuste timer / Sleep / Silenciar |
@@ -155,21 +155,21 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
                          CIRCUITO CON TRANSISTOR NPN (OPCIÓN 100% NEGRO)| |   |
                         +-----------------------------------------------+ |   |
                         |                                               | |   |
-                        |   Pin RX (GPIO3) ----[ Resistencia 1k ]       | |   |
-                        |                               |               | |   |
-                        |                            (Base)             | |   |
-                        |                             /                 | |   |
-                        |        GND (Emisor) +------|<  2N2222 (NPN)   | |   |
-                        |                     |       \                 | |   |
-                        |                     |      (Colector)         | |   |
-                        |                     |         +---------------+--+  |
-                        |                     +---------|---------------+-----+ (A GND Común)
-                        |                               +-------------------> (Al pin LED de la TFT)*
+                        |   3V3 (ó VIN) -----------------------------+  | |   |
+                        |                                            |  | |   |
+                        |                                        (Colector)   |
+                        |                                           +-+ | |   |
+                        |                                          /  | | |   |
+                        |   Pin RX (GPIO3) ----[ Resistencia 1k ]-+- 2N2222   |
+                        |                                  (Base)  \  | | |   |
+                        |                                           +-+ | |   |
+                        |                                        (Emisor) |   |
+                        |                                            +------> (Al pin LED de la TFT)*
                         +-----------------------------------------------+
 
   * NOTA DE RETROILUMINACIÓN (LED):
     - Opción A (Sin transistor): Conectar pin LED de la pantalla directo a 3V3 del NodeMCU.
-    - Opción B (Con transistor 2N2222): Conectar pin LED al Colector del transistor para apagado 100% negro en Sleep.
+    - Opción B (Con transistor 2N2222 / 2N3904): Conectar Colector a 3V3 (ó VIN), Base a pin RX (GPIO3) con resistencia de 1k, y Emisor al pin LED de la pantalla (seguidor de emisor).
   * NOTA DE PINES NO USADOS:
     - SDO (MISO) de la pantalla debe quedar DESCONECTADO (al aire) para no interferir con el pulsador D6.
     - Los pines táctiles (T_CLK, T_CS, T_DIN, T_DO, T_IRQ) y lector SD quedan desconectados.
@@ -177,22 +177,27 @@ Página 3 (Modo Temporizador - DISPLAY_PAGE_MODE = 3):
 
 ### Control de Retroiluminación por Transistor (Apagado 100% Negro)
 
-Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sleep apaga los píxeles pero la luz de fondo permanece encendida (pantalla blanca). Para lograr un **apagado 100% en negro total**, se intercala un transistor NPN (ej. **2N2222**, **2N3904** o **BC547**):
+Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sleep apaga los píxeles pero la luz de fondo permanece encendida (pantalla blanca). Para lograr un **apagado 100% en negro total**, se intercala un transistor NPN (ej. **2N2222** o **2N3904**) en modo **seguidor de emisor**, ya que el pin `LED` del módulo ILI9341 requiere voltaje positivo con respecto al GND común:
 
 ```text
        NodeMCU ESP8266                                 Pantalla TFT
       +----------------+                              +------------+
-      |   RX (GPIO3) --+---[ Resistencia 1k ]         |            |
-      |                |            |                 |            |
-      |                |         (Base)               |            |
-      |                |          /                   |            |
-      |                |     +---|<  NPN (2N2222)     |            |
-      |                |     |    \                   |            |
-      |                |     |   (Colector)           |            |
-      |                |     |      +---------------> | LED        |
-      |                |     |                        |            |
-      |          GND --+-----+----------------------> | GND        |
-      +----------------+  (Emisor)                    +------------+
+      |  3V3 (ó VIN)* -+-------------------------+    |            |
+      |                |                         |    |            |
+      |                |                    (Colector)|            |
+      |                |                        +--+  |            |
+      |                |                       /      |            |
+      |   RX (GPIO3) --+---[ Resistencia 1k ]-+- 2N2222       |
+      |                |           (Base)      \      |            |
+      |                |                        +--+  |            |
+      |                |                     (Emisor) |            |
+      |                |                         +--> | LED        |
+      |                |                              |            |
+      |          GND --+----------------------------> | GND        |
+      +----------------+                              +------------+
+
+       * Para mayor brillo en la pantalla se puede conectar el Colector a VIN (5V).
+         El pin LED del módulo ILI9341 integra una pequeña resistencia interna.
 
        Pinout Transistor 2N2222 / 2N3904 (TO-92):
            +---------------+
