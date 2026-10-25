@@ -78,7 +78,7 @@
 #define PIN_BTN_ACTION               D6    // GPIO12 - Botón Acción / Timer / Sleep (SDO/MISO del TFT debe estar desconectado)
 #define PIN_BUZZER                   D0    // GPIO16 - Salida de audio (Buzzer o Parlante con transistor 2N2222)
 #define BUZZER_KEY_BEEP              false // true: beep al pulsar botones | false: solo alarma de temporizador
-#define AUDIO_STARTUP_MELODY         true  // true: reproducir melodía al arrancar la placa
+#define AUDIO_STARTUP_MELODY         false // true: reproducir melodía al arrancar la placa | false: arranque silencioso
 #define ALARM_MELODY_TYPE            1     // 1: Star Wars (Marcha Imperial) | 2: Super Mario Bros (Overworld)
 
 // ==========================================
