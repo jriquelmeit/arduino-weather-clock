@@ -16,6 +16,7 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
       _pageMode(1) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
+    _lastStatusBarMsg[0] = '\0';
     _lastDayName[0] = '\0';
     _lastTimerStr[0] = '\0';
 }
@@ -105,6 +106,15 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
         _lastDateStr[0] = '\0';
         _lastRssi = -999;
         _lastWifiState = false;
+
+        // Redibujar el footer inmediatamente tras limpiar la pantalla
+        if (_lastStatusBarMsg[0] != '\0') {
+            _tft.fillRect(0, 226, 320, 14, ILI9341_BLACK);
+            _tft.setTextSize(1);
+            _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
+            _tft.setCursor(6, 228);
+            _tft.print(_lastStatusBarMsg);
+        }
     } else {
         // Redibujado rápido: solo borrar la zona central de contenido (Y: 27 a 223)
         _tft.fillRect(0, 27, 320, 197, ILI9341_BLACK);
@@ -661,12 +671,16 @@ void DisplayUI::updateWifiStatus(bool connected, int rssi, const IPAddress& ip) 
 }
 
 void DisplayUI::updateStatusBar(const char* message) {
+    if (message != nullptr && message[0] != '\0') {
+        strncpy(_lastStatusBarMsg, message, sizeof(_lastStatusBarMsg) - 1);
+        _lastStatusBarMsg[sizeof(_lastStatusBarMsg) - 1] = '\0';
+    }
     if (_isSleeping) return;
     _tft.fillRect(0, 226, 320, 14, ILI9341_BLACK);
     _tft.setTextSize(1);
     _tft.setTextColor(ILI9341_LIGHTGREY, ILI9341_BLACK);
     _tft.setCursor(6, 228);
-    _tft.print(message);
+    _tft.print(_lastStatusBarMsg);
 }
 
 void DisplayUI::drawWeatherIcon(int x, int y, WeatherIconType type, bool small) {

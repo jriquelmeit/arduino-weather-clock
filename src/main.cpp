@@ -40,7 +40,8 @@ void switchPage(uint8_t newPage, bool fullRedraw = false) {
     ui.drawBaseLayout(LOCATION_NAME, currentPage, forceFull);
 
     DateTimeInfo dt;
-    if (getCurrentDateTime(dt)) {
+    bool hasDt = getCurrentDateTime(dt);
+    if (hasDt) {
         ui.updateDate(dt);
         if (currentPage != 4) {
             ui.updateTime(dt);
@@ -57,6 +58,18 @@ void switchPage(uint8_t newPage, bool fullRedraw = false) {
 
     if (forceFull) {
         ui.updateWifiStatus(WiFi.status() == WL_CONNECTED, WiFi.RSSI(), WiFi.localIP());
+        char statusMsg[64];
+        if (hasDt) {
+            snprintf(statusMsg, sizeof(statusMsg), "IP:%s | RSSI:%ddBm | Act:%s",
+                     WiFi.localIP().toString().c_str(),
+                     WiFi.RSSI(),
+                     dt.shortTimeStr);
+        } else {
+            snprintf(statusMsg, sizeof(statusMsg), "IP:%s | RSSI:%ddBm | Clima OK",
+                     WiFi.localIP().toString().c_str(),
+                     WiFi.RSSI());
+        }
+        ui.updateStatusBar(statusMsg);
     }
 }
 

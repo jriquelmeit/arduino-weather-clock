@@ -43,6 +43,7 @@ private:
     int8_t _ledPin;
     char _lastTimeStr[10];
     char _lastDateStr[64];
+    char _lastStatusBarMsg[64];
     char _lastDayName[16];
     char _lastTimerStr[10];
     TimerDisplayState _lastTimerState;
