@@ -12,7 +12,7 @@ static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST, TFT_LED_PIN);
 static WeatherService weatherService;
 static WeatherData weatherData;
 static InputController inputCtrl(PIN_BTN_PREV, PIN_BTN_NEXT, PIN_BTN_ACTION, TIMER_LONG_PRESS_MS);
-static BuzzerController buzzer(PIN_BUZZER);
+static BuzzerController buzzer(PIN_BUZZER, ALARM_MELODY_TYPE);
 
 static uint8_t currentPage = DISPLAY_PAGE_MODE;
 
@@ -140,6 +140,12 @@ void setup() {
     // 2. Inicializar botones y buzzer DESPUÉS del bus SPI de la pantalla
     inputCtrl.begin();
     buzzer.begin();
+
+    // Prueba o bienvenida de audio inicial (presionar cualquier botón cancela)
+    if (AUDIO_STARTUP_MELODY) {
+        Serial.printf("[Audio] Reproduciendo melodia de inicio (Melodia: %d)...\n", ALARM_MELODY_TYPE);
+        buzzer.playStartupMelody(PIN_BTN_PREV, PIN_BTN_NEXT, PIN_BTN_ACTION);
+    }
 
     // 3. Conectar a red Wi-Fi
     connectWiFi();

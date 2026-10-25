@@ -116,7 +116,8 @@ Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 
 - **Navegación Interactiva por Botones:** Navegación cíclica entre 4 páginas (Páginas 1, 2, 3 y 4) mediante botones físicos con filtro antirrebote.
 - **Página 3 (Dashboard Central con Reloj Gigante):** Vista con Reloj Gigante en verde lima, barra de segundos fluida (0..59s), Santoral católico del día, condición, temperatura, humedad e Índice UV actual y máximo proyectado.
-- **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer al llegar a cero.
+- **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer o parlante al llegar a cero.
+- **Audio Polifónico y Melodías Retro:** Soporte para buzzer activo o parlante de cono de 8Ω (0.5W a 2W) mediante transistor NPN (2N2222). Generación de frecuencias reales con `tone()` para reproducir melodías retro completas (La Marcha Imperial de Star Wars o Super Mario Bros) con cancelación interactiva por botones.
 - **Apagado y Modo Noche (Sleep Mode):** Apagado manual de pantalla mediante el botón de acción en las páginas de reloj y clima, o apagado programado automático por horario (modo nocturno). Reactivación instantánea al pulsar cualquier botón.
 - **Sincronización NTP y Reglas POSIX:** Obtención automática de fecha y hora local con cálculo de cambio de horario estacional (horario de verano e invierno) en el microcontrolador sin llamadas web adicionales.
 - **Pronóstico Meteorológico Completo:** Temperatura actual, porcentaje de humedad, condición del cielo y pronóstico de los 2 días posteriores (mínimas y máximas).
@@ -144,7 +145,7 @@ Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 | **Botón 1 (Prev)** | Terminal A / GND | **D1** | GPIO5 | `INPUT_PULLUP` - Retroceder página |
 | **Botón 2 (Next)** | Terminal A / GND | **D2** | GPIO4 | `INPUT_PULLUP` - Avanzar página |
 | **Botón 3 (Action)** | Terminal A / GND | **D6** | GPIO12 | `INPUT_PULLUP` - Ajuste timer / Sleep / Silenciar |
-| **Buzzer** | Señal / (+) / GND | **D0** | GPIO16 | `OUTPUT` - Alarma de temporizador |
+| **Audio (Buzzer / Parlante)** | Pin (+) Buzzer ó Base 2N2222 | **D0** | GPIO16 | `OUTPUT` - Frecuencias `tone()` para alarma y melodías |
 
 ### Diagrama Esquemático Completo de Conexiones
 
@@ -232,6 +233,32 @@ Por defecto, si conectas el pin `LED` de la pantalla directo a `3V3`, el modo Sl
              E     B     C
          (Emisor) (Base) (Colector)
 ```
+
+### Conexión del Parlante de 8Ω (Amplificador con Transistor NPN 2N2222)
+
+Para reproducir melodías polifónicas estilo chiptune (Marcha Imperial de Star Wars o Super Mario Bros) con frecuencias reales, se conecta un parlante dinámico de **8Ω (0.5W a 2W)** utilizando un transistor NPN para proteger el pin del microcontrolador:
+
+```text
+                    VIN (5V)* del NodeMCU
+                       |
+                  [ Resistencia 47 ohm ]  (Limita corriente y fija volumen)
+                       |
+                 (+) [ PARLANTE 8 ohm 0.5W/2W ] (-)
+                               |
+                               |  (Pata 3: Colector)
+                          +----+
+                          |  /
+    D0 (GPIO16) --[ 1k ]-( Pata 2: Base )   Transistor NPN 2N2222 / 2N3904
+     del NodeMCU          |  \
+                          +----+
+                               |  (Pata 1: Emisor)
+                              GND (Común)
+
+    * Para volumen suave conectar a 3V3. Para mayor volumen conectar a VIN (5V).
+```
+
+> [!WARNING]
+> **Nunca conectar un parlante de 8Ω directamente a un pin GPIO del ESP8266.** La demanda de corriente (~412 mA) superaría con creces el límite máximo de 12 mA del GPIO, dañando permanentemente el microcontrolador. Utiliza siempre la etapa con transistor 2N2222 y resistencia limitadora.
 
 > [!NOTE]
 > Los pines táctiles (`T_CLK`, `T_CS`, `T_DIN`, `T_DO`, `T_IRQ`) y el lector de tarjeta micro-SD (`SD_CS`, etc.) no son necesarios para este proyecto y pueden permanecer desconectados.

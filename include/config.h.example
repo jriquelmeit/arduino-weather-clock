@@ -70,14 +70,16 @@
 #define HOURLY_FORECAST_STEP         2
 
 // ==========================================
-// PINES DE BOTONES Y BUZZER
+// PINES DE BOTONES Y AUDIO (BUZZER / PARLANTE)
 // ==========================================
 // Conexión a GND directo (usan INPUT_PULLUP interno)
 #define PIN_BTN_PREV                 D1    // GPIO5 - Página anterior
 #define PIN_BTN_NEXT                 D2    // GPIO4 - Página siguiente
 #define PIN_BTN_ACTION               D6    // GPIO12 - Botón Acción / Timer / Sleep (SDO/MISO del TFT debe estar desconectado)
-#define PIN_BUZZER                   D0    // GPIO16 - Buzzer de alarma
+#define PIN_BUZZER                   D0    // GPIO16 - Salida de audio (Buzzer o Parlante con transistor 2N2222)
 #define BUZZER_KEY_BEEP              false // true: beep al pulsar botones | false: solo alarma de temporizador
+#define AUDIO_STARTUP_MELODY         true  // true: reproducir melodía al arrancar la placa
+#define ALARM_MELODY_TYPE            1     // 1: Star Wars (Marcha Imperial) | 2: Super Mario Bros (Overworld)
 
 // ==========================================
 // CONFIGURACIÓN DEL TEMPORIZADOR (PÁGINA 3)
