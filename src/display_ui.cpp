@@ -67,6 +67,54 @@ void DisplayUI::showBootScreen(const char* ssid) {
     _tft.print("Obteniendo hora NTP y clima...");
 }
 
+void DisplayUI::showConfigPortalScreen(const char* apSsid, const char* apIp) {
+    _tft.fillScreen(ILI9341_BLACK);
+
+    // Cabecera destacada (Azul marino con línea naranja)
+    _tft.fillRect(0, 0, 320, 36, ILI9341_NAVY);
+    _tft.drawFastHLine(0, 36, 320, ILI9341_ORANGE);
+
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_YELLOW);
+    _tft.setCursor(20, 10);
+    _tft.print("MODO CONFIGURACION");
+
+    // Marco central
+    _tft.drawRoundRect(10, 48, 300, 178, 8, ILI9341_ORANGE);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_WHITE);
+    _tft.setCursor(22, 60);
+    _tft.print("1. Conectate a la red Wi-Fi:");
+
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_CYAN);
+    _tft.setCursor(26, 76);
+    _tft.print(apSsid);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_WHITE);
+    _tft.setCursor(22, 104);
+    _tft.print("2. Abre tu navegador e ingresa a:");
+
+    _tft.setTextSize(2);
+    _tft.setTextColor(ILI9341_GREENYELLOW);
+    _tft.setCursor(26, 120);
+    _tft.print("http://");
+    _tft.print(apIp);
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_LIGHTGREY);
+    _tft.setCursor(22, 150);
+    _tft.print("Configura Wi-Fi, Ciudad y Melodia.");
+    _tft.setCursor(22, 165);
+    _tft.print("Al guardar, el reloj se reiniciara.");
+
+    _tft.setTextColor(ILI9341_ORANGE);
+    _tft.setCursor(22, 195);
+    _tft.print("Esperando conexion del usuario...");
+}
+
 void DisplayUI::updateBootProgress(const char* stepMsg, uint8_t dots) {
     _tft.fillRect(30, 180, 260, 20, ILI9341_BLACK);
     _tft.setTextSize(1);
@@ -787,19 +835,34 @@ void DisplayUI::drawWeatherIcon(int x, int y, WeatherIconType type, bool small) 
     }
 }
 
-void DisplayUI::updateTimer(uint16_t remainingSec, uint16_t totalSec, TimerDisplayState state, bool forceRedraw) {
+void DisplayUI::updateTimer(uint32_t remainingSec, uint32_t totalSec, TimerDisplayState state, bool forceRedraw) {
     if (_isSleeping) return;
 
-    // 1. Formatear tiempo en MM:SS
-    char timerStr[10];
-    uint16_t mins = remainingSec / 60;
-    uint16_t secs = remainingSec % 60;
-    snprintf(timerStr, sizeof(timerStr), "%02u:%02u", mins, secs);
+    // 1. Formatear tiempo en HH:MM:SS (si >= 1 hora) o MM:SS (si < 1 hora)
+    char timerStr[16];
+    uint32_t hours = remainingSec / 3600;
+    uint32_t mins = (remainingSec % 3600) / 60;
+    uint32_t secs = remainingSec % 60;
+
+    bool hasHours = (remainingSec >= 3600 || totalSec >= 3600);
+    if (hasHours) {
+        snprintf(timerStr, sizeof(timerStr), "%02u:%02u:%02u", hours, mins, secs);
+    } else {
+        snprintf(timerStr, sizeof(timerStr), "%02u:%02u", mins, secs);
+    }
 
     // 2. Redibujar dígitos solo si cambiaron o forceRedraw
     if (forceRedraw || strncmp(_lastTimerStr, timerStr, sizeof(_lastTimerStr)) != 0 || state != _lastTimerState) {
-        _tft.fillRect(40, 56, 240, 52, ILI9341_BLACK);
-        _tft.setTextSize(6);
+        _tft.fillRect(20, 56, 280, 52, ILI9341_BLACK);
+
+        if (hasHours) {
+            _tft.setTextSize(5);
+            _tft.setCursor(40, 62);
+        } else {
+            _tft.setTextSize(6);
+            _tft.setCursor(70, 60);
+        }
+
         if (state == TIMER_UI_RUNNING) {
             _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
         } else if (state == TIMER_UI_ALARM) {
@@ -807,7 +870,6 @@ void DisplayUI::updateTimer(uint16_t remainingSec, uint16_t totalSec, TimerDispl
         } else {
             _tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
         }
-        _tft.setCursor(70, 60);
         _tft.print(timerStr);
         strncpy(_lastTimerStr, timerStr, sizeof(_lastTimerStr));
     }

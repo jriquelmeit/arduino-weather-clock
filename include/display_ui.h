@@ -19,6 +19,7 @@ public:
 
     void begin(uint8_t rotation = 3);
     void showBootScreen(const char* ssid);
+    void showConfigPortalScreen(const char* apSsid, const char* apIp);
     void updateBootProgress(const char* stepMsg, uint8_t dots);
 
     // Dibuja la estructura base fija (marcos, cabecera, etiquetas estáticas)
@@ -29,7 +30,7 @@ public:
     void updateTime(const DateTimeInfo& timeInfo);
     void updateDate(const DateTimeInfo& timeInfo);
     void updateWeather(const WeatherData& weather, uint8_t pageMode = 1);
-    void updateTimer(uint16_t remainingSec, uint16_t totalSec, TimerDisplayState state, bool forceRedraw = false);
+    void updateTimer(uint32_t remainingSec, uint32_t totalSec, TimerDisplayState state, bool forceRedraw = false);
     void updateWifiStatus(bool connected, int rssi, const IPAddress& ip);
     void updateStatusBar(const char* message);
 

@@ -114,6 +114,9 @@ Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 
 ## Características
 
+- **Panel de Control Web en Tiempo Real:** Servidor web integrado accesible desde cualquier dispositivo en la red local (`http://<IP-DEL-RELOJ>/`) para cambiar páginas, controlar el temporizador, activar/desactivar modo reposo (sleep) y cambiar/probar melodías de alarma.
+- **Portal de Configuración Wi-Fi (Modo AP / Captive Portal):** Al enchufar o reiniciar manteniendo presionado el **Botón 3 (D6)** (o si no hay Wi-Fi configurado), el ESP8266 genera una red propia `WeatherClock-Setup` con portal cautivo (`192.168.4.1`) que permite escanear redes 2.4 GHz, ingresar contraseñas y configurar ciudad/coordenadas.
+- **Memoria Persistente (LittleFS):** La configuración de Wi-Fi, ubicación, página inicial y melodía se almacena de forma no volátil en la memoria flash interna del ESP8266, manteniéndose intacta al apagar o reiniciar el reloj.
 - **Navegación Interactiva por Botones:** Navegación cíclica entre 4 páginas (Páginas 1, 2, 3 y 4) mediante botones físicos con filtro antirrebote.
 - **Página 3 (Dashboard Central con Reloj Gigante):** Vista con Reloj Gigante en verde lima, barra de segundos fluida (0..59s), Santoral católico del día, condición, temperatura, humedad e Índice UV actual y máximo proyectado.
 - **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer o parlante al llegar a cero.
@@ -269,6 +272,7 @@ Para reproducir melodías polifónicas estilo chiptune (Marcha Imperial de Star 
 | :--- | :--- | :--- | :--- |
 | **Botón 1 (Prev / D1)** | Cualquiera | Retroceder página ($4 \rightarrow 3 \rightarrow 2 \rightarrow 1 \rightarrow 4$) | - |
 | **Botón 2 (Next / D2)** | Cualquiera | Avanzar página ($1 \rightarrow 2 \rightarrow 3 \rightarrow 4 \rightarrow 1$) | - |
+| **Botón 3 (Action / D6)** | Al enchufar / encender | - | **Activar Modo Portal AP (Configuración Wi-Fi)** |
 | **Botón 3 (Action / D6)** | Página 1 (Diario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 2 (Horario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 3 (Dashboard Central) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
@@ -276,6 +280,135 @@ Para reproducir melodías polifónicas estilo chiptune (Marcha Imperial de Star 
 | **Botón 3 (Action / D6)** | Página 4 (Timer - Conteo) | **Detener / Cancelar** conteo | - |
 | **Cualquier Botón** | Alarma sonando | **Silenciar alarma del buzzer** | Silenciar alarma del buzzer |
 | **Cualquier Botón** | Pantalla en reposo (Sleep) | **Encender pantalla / Despertar** | Encender pantalla / Despertar |
+
+---
+
+## 🌐 Servidor Web y API REST
+
+El dispositivo expone un servidor HTTP nativo en el puerto 80 que permite monitorear y controlar el reloj desde cualquier navegador web o sistema domótico (Home Assistant, scripts, etc.):
+
+- **Panel de Control Visual:** `http://<IP-DEL-RELOJ>/`
+- **Configurador de Wi-Fi y Ciudad:** `http://<IP-DEL-RELOJ>/setup` (o `http://192.168.4.1/` en Modo Portal AP).
+
+---
+
+### Endpoints de la API REST
+
+Todos los endpoints retornan y aceptan datos estándar en formato JSON o parámetros por URL:
+
+#### 1. Obtener Estado en Tiempo Real
+* **Método:** `GET /api/status`
+* **Descripción:** Retorna la información meteorológica actual, estado de la pantalla, estado del temporizador y ajustes activos.
+* **Respuesta de Ejemplo:**
+  ```json
+  {
+    "time": "14:35",
+    "temp": 18.5,
+    "humidity": 55,
+    "condition": "Despejado",
+    "page": 1,
+    "sleeping": false,
+    "rssi": -58,
+    "alarming": false,
+    "melody": 1,
+    "timer": {
+      "remaining": 900,
+      "total": 900,
+      "state": 0
+    },
+    "config": {
+      "ssid": "Mi_Red_WiFi",
+      "location": "Santiago",
+      "lat": "-33.4428",
+      "lon": "-70.6542",
+      "melody": 1,
+      "page": 1
+    }
+  }
+  ```
+  > `timer.state`: `0` = Inactivo / Listo, `1` = En Conteo, `2` = ¡Alarma Sonando!
+
+---
+
+#### 2. Cambiar Página en Pantalla
+* **Método:** `POST /api/page?page={1..4}`
+* **Parámetros:**
+  * `page=1`: Página 1 (Pronóstico Diario a 2 días)
+  * `page=2`: Página 2 (Pronóstico Horario)
+  * `page=3`: Página 3 (Dashboard Central con Reloj Gigante y Santoral)
+  * `page=4`: Página 4 (Temporizador)
+* **Ejemplo (curl):**
+  ```bash
+  curl -X POST "http://192.168.1.50/api/page?page=3"
+  ```
+
+---
+
+#### 3. Control de Pantalla (Modo Reposo / Sleep)
+* **Método:** `POST /api/sleep?action=toggle`
+* **Descripción:** Alterna entre apagar la pantalla (retroiluminación y píxeles) o encenderla y despertarla.
+* **Ejemplo (curl):**
+  ```bash
+  curl -X POST "http://192.168.1.50/api/sleep?action=toggle"
+  ```
+
+---
+
+#### 4. Control del Temporizador
+* **Método:** `POST /api/timer`
+* **Parámetros soportados:**
+  * **Iniciar conteo:** `?action=start&hours={H}&minutes={M}` o `?action=start&seconds={S}`
+  * **Ajustar sin iniciar:** `?action=set&hours={H}&minutes={M}`
+  * **Detener / Reiniciar:** `?action=stop`
+* **Ejemplos (curl):**
+  ```bash
+  # Iniciar un temporizador de 1 hora y 30 minutos
+  curl -X POST "http://192.168.1.50/api/timer?action=start&hours=1&minutes=30"
+
+  # Iniciar un temporizador rápido de 15 minutos
+  curl -X POST "http://192.168.1.50/api/timer?action=start&minutes=15"
+
+  # Detener o resetear el conteo activo
+  curl -X POST "http://192.168.1.50/api/timer?action=stop"
+  ```
+
+---
+
+#### 5. Control de Alarma y Melodías
+* **Método:** `POST /api/alarm`
+* **Parámetros soportados:**
+  * **Probar alarma acústica:** `?action=test` (reproduce la melodía por 8 segundos)
+  * **Silenciar alarma:** `?action=stop` (detiene el sonido inmediatamente)
+  * **Cambiar melodía predeterminada:** `?action=set&melody={1|2}`
+    * `1`: Star Wars (La Marcha Imperial)
+    * `2`: Super Mario Bros (Overworld Theme)
+* **Ejemplos (curl):**
+  ```bash
+  # Seleccionar Super Mario Bros como melodía de alarma
+  curl -X POST "http://192.168.1.50/api/alarm?action=set&melody=2"
+
+  # Probar la melodía del buzzer/parlante
+  curl -X POST "http://192.168.1.50/api/alarm?action=test"
+  ```
+
+---
+
+#### 6. Escaneo de Redes Wi-Fi
+* **Método:** `GET /scan`
+* **Descripción:** Escanea las redes 2.4 GHz cercanas y retorna un arreglo JSON con el SSID y potencia de señal (RSSI).
+* **Respuesta de Ejemplo:**
+  ```json
+  [
+    { "ssid": "Mi_Red_Casa", "rssi": -52, "enc": 1 },
+    { "ssid": "Red_Vecino", "rssi": -81, "enc": 1 }
+  ]
+  ```
+
+---
+
+#### 7. Guardar Configuración Persistente
+* **Método:** `POST /save`
+* **Descripción:** Recibe los datos del formulario (`ssid`, `password`, `location`, `lat`, `lon`, `melody`, `page`), los escribe en `/config.json` (LittleFS) y reinicia el ESP8266 automáticamente.
 
 ---
 
@@ -373,18 +506,26 @@ arduino-weather-clock/
 ├── include/
 │   ├── config.h.example        # Plantilla pública de parámetros
 │   ├── config.h                # Configuración local de Wi-Fi, pines y temporizador
+│   ├── settings_manager.h      # Modelo y persistencia de configuración en LittleFS
+│   ├── web_server_service.h    # Servidor web, API REST y portal cautivo (SoftAP)
 │   ├── time_service.h          # Declaración de funciones NTP y calendario en español
+│   ├── santoral.h              # Calendario santoral católico en español para Página 3
 │   ├── weather_service.h       # Modelo de datos meteorológicos y tipos de iconos
 │   ├── display_ui.h            # Controladores del display TFT, layout y temporizador
 │   ├── input_controller.h      # Controlador no bloqueante de botones (antirrebote y long press)
 │   └── buzzer_controller.h     # Controlador no bloqueante del buzzer y patrones de alarma
 ├── src/
 │   ├── main.cpp                # Setup, bucle de ejecución, navegación y temporizador
+│   ├── settings_manager.cpp    # Carga y almacenamiento no volátil de ajustes en Flash
+│   ├── web_server_service.cpp  # Implementación de endpoints REST y páginas en PROGMEM
 │   ├── time_service.cpp        # Manejo de SNTP nativo y formateo en español
+│   ├── santoral.cpp            # Tabla de nombres del santoral católico
 │   ├── weather_service.cpp     # Consulta HTTP a Open-Meteo y deserialización JSON
 │   ├── display_ui.cpp          # Renderizado gráfico de reloj, clima y temporizador
 │   ├── input_controller.cpp    # Detección de clics y pulsaciones sostenidas
 │   └── buzzer_controller.cpp   # Patrones acústicos para alarmas y confirmaciones
+├── test/
+│   └── test_app_logic.cpp      # Pruebas unitarias nativas (Unity framework)
 └── README.md
 ```
 

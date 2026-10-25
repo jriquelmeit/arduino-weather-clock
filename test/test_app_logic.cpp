@@ -1,6 +1,7 @@
 #include <unity.h>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 // ============================================================================
 // 1. MOCK & LÓGICA DE GESTIÓN DE MODO NOCHE Y REPOSO
@@ -245,6 +246,143 @@ void test_uv_categories(void) {
     TEST_ASSERT_EQUAL_STRING("Extrem.", testUvCategory(11.5f));
 }
 
+// ============================================================================
+// 3. TESTS DE PORTAL DE CONFIGURACIÓN Y WEB SERVER
+// ============================================================================
+bool shouldEnterConfigPortal(bool btnActionLowAtBoot, unsigned long holdDurationMs, bool hasValidWifi) {
+    if (!hasValidWifi) return true;
+    if (btnActionLowAtBoot && holdDurationMs >= 800) return true;
+    return false;
+}
+
+bool validateConfigData(const char* ssid, const char* lat, const char* lon, uint8_t page, uint8_t melody) {
+    if (!ssid || strlen(ssid) == 0) return false;
+    if (!lat || strlen(lat) == 0) return false;
+    if (!lon || strlen(lon) == 0) return false;
+    if (page < 1 || page > 4) return false;
+    if (melody < 1 || melody > 2) return false;
+    return true;
+}
+
+bool validateWebApiTimer(const char* action, int hours, int minutes, uint32_t& outSec) {
+    if (strcmp(action, "start") == 0 || strcmp(action, "set") == 0) {
+        uint32_t total = (hours * 3600) + (minutes * 60);
+        if (total < 5) total = 5;
+        if (total > 86400) total = 86400; // Máx 24h
+        outSec = total;
+        return true;
+    }
+    if (strcmp(action, "stop") == 0) {
+        return true;
+    }
+    return false;
+}
+
+void formatTimerString(uint32_t totalSec, uint32_t remSec, char* buf, size_t bufLen) {
+    uint32_t h = remSec / 3600;
+    uint32_t m = (remSec % 3600) / 60;
+    uint32_t s = remSec % 60;
+    if (remSec >= 3600 || totalSec >= 3600) {
+        snprintf(buf, bufLen, "%02u:%02u:%02u", h, m, s);
+    } else {
+        snprintf(buf, bufLen, "%02u:%02u", m, s);
+    }
+}
+
+bool validateWebApiPage(int page, uint8_t& outPage) {
+    if (page >= 1 && page <= 4) {
+        outPage = static_cast<uint8_t>(page);
+        return true;
+    }
+    return false;
+}
+
+void test_boot_portal_button_detection(void) {
+    // Si no hay Wi-Fi configurado, siempre entra al portal
+    TEST_ASSERT_TRUE(shouldEnterConfigPortal(false, 0, false));
+
+    // Si hay Wi-Fi pero botón no fue presionado, arranque normal
+    TEST_ASSERT_FALSE(shouldEnterConfigPortal(false, 0, true));
+
+    // Si botón fue presionado pero solo 300ms (ruido/toque accidental), arranque normal
+    TEST_ASSERT_FALSE(shouldEnterConfigPortal(true, 300, true));
+
+    // Si botón fue sostenido >= 800ms al arrancar, entra al portal
+    TEST_ASSERT_TRUE(shouldEnterConfigPortal(true, 850, true));
+    TEST_ASSERT_TRUE(shouldEnterConfigPortal(true, 1200, true));
+}
+
+void test_settings_validation(void) {
+    // Caso válido
+    TEST_ASSERT_TRUE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 1));
+    TEST_ASSERT_TRUE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 4, 2));
+
+    // SSID vacío -> inválido
+    TEST_ASSERT_FALSE(validateConfigData("", "-33.44", "-70.65", 1, 1));
+
+    // Coordenadas vacías -> inválido
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "", "-70.65", 1, 1));
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "", 1, 1));
+
+    // Página fuera de rango (0 o 5) -> inválido
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 0, 1));
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 5, 1));
+
+    // Melodía fuera de rango (0 o 3) -> inválido
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 0));
+    TEST_ASSERT_FALSE(validateConfigData("Mi_Wifi", "-33.44", "-70.65", 1, 3));
+}
+
+void test_web_api_timer_validation(void) {
+    uint32_t sec = 0;
+
+    // Acción válida con 15 minutos (0h 15m = 900s)
+    TEST_ASSERT_TRUE(validateWebApiTimer("start", 0, 15, sec));
+    TEST_ASSERT_EQUAL_UINT32(900, sec);
+
+    // Acción válida con 1 hora y 30 minutos (1h 30m = 5400s)
+    TEST_ASSERT_TRUE(validateWebApiTimer("start", 1, 30, sec));
+    TEST_ASSERT_EQUAL_UINT32(5400, sec);
+
+    // Clamp de tiempo mínimo (< 5s -> 5s)
+    TEST_ASSERT_TRUE(validateWebApiTimer("start", 0, 0, sec));
+    TEST_ASSERT_EQUAL_UINT32(5, sec);
+
+    // Clamp de tiempo máximo (> 24h -> 86400s)
+    TEST_ASSERT_TRUE(validateWebApiTimer("set", 30, 0, sec));
+    TEST_ASSERT_EQUAL_UINT32(86400, sec);
+
+    // Acción stop no requiere parámetros
+    TEST_ASSERT_TRUE(validateWebApiTimer("stop", 0, 0, sec));
+
+    // Acción desconocida
+    TEST_ASSERT_FALSE(validateWebApiTimer("invalid_cmd", 0, 10, sec));
+
+    // Prueba de formateo en pantalla
+    char buf[16];
+    formatTimerString(900, 900, buf, sizeof(buf)); // 15 min
+    TEST_ASSERT_EQUAL_STRING("15:00", buf);
+
+    formatTimerString(5400, 5400, buf, sizeof(buf)); // 1h 30m
+    TEST_ASSERT_EQUAL_STRING("01:30:00", buf);
+
+    formatTimerString(5400, 125, buf, sizeof(buf)); // 1h 30m total, 2m 5s restante
+    TEST_ASSERT_EQUAL_STRING("00:02:05", buf);
+}
+
+void test_web_api_page_validation(void) {
+    uint8_t page = 0;
+    TEST_ASSERT_TRUE(validateWebApiPage(1, page));
+    TEST_ASSERT_EQUAL_UINT8(1, page);
+    TEST_ASSERT_TRUE(validateWebApiPage(3, page));
+    TEST_ASSERT_EQUAL_UINT8(3, page);
+    TEST_ASSERT_TRUE(validateWebApiPage(4, page));
+    TEST_ASSERT_EQUAL_UINT8(4, page);
+
+    TEST_ASSERT_FALSE(validateWebApiPage(0, page));
+    TEST_ASSERT_FALSE(validateWebApiPage(5, page));
+}
+
 int main(int argc, char **argv) {
     UNITY_BEGIN();
     RUN_TEST(test_manual_sleep_during_day_stays_off);
@@ -253,5 +391,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_manual_wake_during_night_timeout);
     RUN_TEST(test_weather_icon_day_night);
     RUN_TEST(test_uv_categories);
+    RUN_TEST(test_boot_portal_button_detection);
+    RUN_TEST(test_settings_validation);
+    RUN_TEST(test_web_api_timer_validation);
+    RUN_TEST(test_web_api_page_validation);
     return UNITY_END();
 }

@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include "config.h"
+#include "settings_manager.h"
+#include "web_server_service.h"
 #include "time_service.h"
 #include "weather_service.h"
 #include "display_ui.h"
@@ -8,6 +10,7 @@
 #include "buzzer_controller.h"
 
 // Instancias principales
+static SettingsManager settingsMgr;
 static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST, TFT_LED_PIN);
 static WeatherService weatherService;
 static WeatherData weatherData;
@@ -15,12 +18,13 @@ static InputController inputCtrl(PIN_BTN_PREV, PIN_BTN_NEXT, PIN_BTN_ACTION, TIM
 static BuzzerController buzzer(PIN_BUZZER, ALARM_MELODY_TYPE);
 
 static uint8_t currentPage = DISPLAY_PAGE_MODE;
+static bool isPortalMode = false;
 
-// Estado del Temporizador (Página 3)
+// Estado del Temporizador (Página 4)
 static TimerDisplayState timerState = TIMER_UI_IDLE;
-static uint16_t timerSelectedMinutes = TIMER_DEFAULT_MINUTES;
-static uint16_t timerTotalSec = TIMER_DEFAULT_MINUTES * 60;
-static uint16_t timerRemainingSec = TIMER_DEFAULT_MINUTES * 60;
+static uint32_t timerSelectedSec = TIMER_DEFAULT_MINUTES * 60;
+static uint32_t timerTotalSec = TIMER_DEFAULT_MINUTES * 60;
+static uint32_t timerRemainingSec = TIMER_DEFAULT_MINUTES * 60;
 static unsigned long lastTimerTick = 0;
 
 // Modo noche y reposo
@@ -36,11 +40,17 @@ static unsigned long lastWeatherAttempt = 0;
 static unsigned long lastWifiStatusCheck = 0;
 static bool initialWeatherFetched = false;
 
-void switchPage(uint8_t newPage, bool fullRedraw = false) {
+void switchPage(uint8_t newPage, bool fullRedraw = false);
+
+// Declaración previa de WebServerCallbacks
+static WebServerCallbacks buildServerCallbacks();
+static WebServerService webServer(settingsMgr, buildServerCallbacks());
+
+void switchPage(uint8_t newPage, bool fullRedraw) {
     uint8_t prevPage = currentPage;
     currentPage = newPage;
     bool forceFull = fullRedraw || (newPage == 3) || (prevPage == 3);
-    ui.drawBaseLayout(LOCATION_NAME, currentPage, forceFull);
+    ui.drawBaseLayout(settingsMgr.get().locationName, currentPage, forceFull);
 
     DateTimeInfo dt;
     bool hasDt = getCurrentDateTime(dt);
@@ -76,6 +86,127 @@ void switchPage(uint8_t newPage, bool fullRedraw = false) {
     }
 }
 
+static WebServerCallbacks buildServerCallbacks() {
+    WebServerCallbacks cb;
+
+    cb.onPageChange = [](uint8_t page) {
+        if (page >= 1 && page <= 4) {
+            switchPage(page, false);
+        }
+    };
+
+    cb.onToggleSleep = []() {
+        if (ui.isSleeping()) {
+            manualSleepActive = false;
+            nightAutoSleepActive = false;
+            ui.wakeDisplay();
+            switchPage(currentPage, true);
+        } else {
+            manualSleepActive = true;
+            nightAutoSleepActive = false;
+            manualWakeActive = false;
+            ui.sleepDisplay();
+        }
+    };
+
+    cb.isSleeping = []() -> bool {
+        return ui.isSleeping();
+    };
+
+    cb.getCurrentPage = []() -> uint8_t {
+        return currentPage;
+    };
+
+    cb.onTimerStart = [](uint32_t sec) {
+        if (sec < 5) sec = 5;
+        if (sec > 86400) sec = 86400; // Máximo 24 horas
+        timerSelectedSec = sec;
+        timerTotalSec = sec;
+        timerRemainingSec = timerTotalSec;
+        timerState = TIMER_UI_RUNNING;
+        lastTimerTick = millis();
+        if (currentPage == 4) {
+            ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
+        }
+    };
+
+    cb.onTimerStop = []() {
+        timerState = TIMER_UI_IDLE;
+        buzzer.stop();
+        timerRemainingSec = timerSelectedSec;
+        timerTotalSec = timerRemainingSec;
+        if (currentPage == 4) {
+            ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
+        }
+    };
+
+    cb.onTimerSetSeconds = [](uint32_t sec) {
+        if (sec < 5) sec = 5;
+        if (sec > 86400) sec = 86400;
+        timerSelectedSec = sec;
+        timerTotalSec = sec;
+        timerRemainingSec = timerTotalSec;
+        if (currentPage == 4) {
+            ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
+        }
+    };
+
+    cb.getTimerStatus = [](uint32_t& rem, uint32_t& tot, uint8_t& st) {
+        rem = timerRemainingSec;
+        tot = timerTotalSec;
+        st = static_cast<uint8_t>(timerState);
+    };
+
+    cb.onSetMelody = [](uint8_t melody) {
+        buzzer.setMelodyType(melody);
+    };
+
+    cb.onTestAlarm = []() {
+        buzzer.startAlarm(8000); // Probar alarma durante 8 segundos
+    };
+
+    cb.onStopAlarm = []() {
+        buzzer.stop();
+    };
+
+    cb.isAlarming = []() -> bool {
+        return buzzer.isAlarming();
+    };
+
+    cb.getCurrentMelody = []() -> uint8_t {
+        return settingsMgr.get().alarmMelody;
+    };
+
+    cb.getWeatherInfo = [](char* timeBuf, size_t timeLen, float& temp, int& hum, char* condBuf, size_t condLen) {
+        DateTimeInfo dt;
+        if (getCurrentDateTime(dt)) {
+            snprintf(timeBuf, timeLen, "%s", dt.timeStr);
+        } else {
+            snprintf(timeBuf, timeLen, "--:--");
+        }
+
+        if (weatherData.valid) {
+            temp = weatherData.current.temperature;
+            hum = weatherData.current.humidity;
+            snprintf(condBuf, condLen, "%s", weatherData.current.conditionText);
+        } else {
+            temp = 0.0f;
+            hum = 0;
+            snprintf(condBuf, condLen, "Sin datos de clima");
+        }
+    };
+
+    cb.onSaveConfig = [](const char* ssid, const char* pass, const char* loc, const char* lat, const char* lon, uint8_t melody, uint8_t page) -> bool {
+        settingsMgr.setWifi(ssid, pass);
+        settingsMgr.setLocation(loc, lat, lon);
+        settingsMgr.setAlarmMelody(melody);
+        settingsMgr.setDefaultPage(page);
+        return settingsMgr.save();
+    };
+
+    return cb;
+}
+
 void handleNightMode(const DateTimeInfo& dt) {
     if (!NIGHT_MODE_ENABLED) return;
 
@@ -106,7 +237,6 @@ void handleNightMode(const DateTimeInfo& dt) {
     } else {
         // Es de día
         manualWakeActive = false;
-        // Solo despertar automáticamente si la pantalla fue apagada por el modo noche programado
         if (nightAutoSleepActive && ui.isSleeping()) {
             nightAutoSleepActive = false;
             manualSleepActive = false;
@@ -116,13 +246,13 @@ void handleNightMode(const DateTimeInfo& dt) {
     }
 }
 
-void connectWiFi() {
+bool connectWiFi(const char* ssid, const char* pass) {
     Serial.println(F("\n========================================"));
-    Serial.printf("Conectando a red Wi-Fi: %s\n", WIFI_SSID);
+    Serial.printf("Conectando a red Wi-Fi: %s\n", ssid);
     Serial.println(F("========================================"));
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.begin(ssid, pass);
 
     uint8_t dots = 0;
     unsigned long startAttempt = millis();
@@ -141,9 +271,11 @@ void connectWiFi() {
         Serial.printf("  IP Asignada: %s\n", WiFi.localIP().toString().c_str());
         Serial.printf("  Senal (RSSI): %d dBm\n", WiFi.RSSI());
         ui.updateBootProgress("Wi-Fi Conectado OK", 0);
+        return true;
     } else {
-        Serial.println(F("\n[Wi-Fi] Tiempo de espera agotado. Continuando en segundo plano..."));
+        Serial.println(F("\n[Wi-Fi] Tiempo de espera agotado."));
         ui.updateBootProgress("Sin conexion directa", 0);
+        return false;
     }
 }
 
@@ -151,28 +283,64 @@ void setup() {
     Serial.begin(115200);
     delay(100);
 
+    // 0. Detección de Botón 3 presionado al enchufar / encender para modo Portal AP
+    pinMode(PIN_BTN_ACTION, INPUT_PULLUP);
+    delay(50);
+    bool btnActionPressedAtBoot = false;
+    if (digitalRead(PIN_BTN_ACTION) == LOW) {
+        Serial.println(F("[Boot] Boton 3 detectado en LOW. Verificando pulsacion sostenida..."));
+        unsigned long holdStart = millis();
+        while (digitalRead(PIN_BTN_ACTION) == LOW && (millis() - holdStart < 800)) {
+            delay(20);
+        }
+        if (millis() - holdStart >= 800) {
+            btnActionPressedAtBoot = true;
+            Serial.println(F("[Boot] ¡Boton 3 sostenido durante el arranque! Activando modo Portal AP."));
+        }
+    }
+
     Serial.println(F("\n=============================================="));
     Serial.println(F("   ESP8266 Weather Clock - TFT ILI9341 SPI   "));
     Serial.println(F("=============================================="));
 
-    // 1. Inicializar pantalla TFT (debe ser primero para que SPI.begin no altere la configuración de pines)
+    // 1. Inicializar pantalla TFT
     ui.begin(TFT_ROTATION);
-    ui.showBootScreen(WIFI_SSID);
 
-    // 2. Inicializar botones y buzzer DESPUÉS del bus SPI de la pantalla
+    // 2. Inicializar sistema de almacenamiento y configuraciones persistentes
+    settingsMgr.begin();
+    currentPage = settingsMgr.get().defaultPage;
+    buzzer.setMelodyType(settingsMgr.get().alarmMelody);
+
+    // 3. Inicializar botones y buzzer
     inputCtrl.begin();
     buzzer.begin();
 
-    // Prueba o bienvenida de audio inicial (presionar cualquier botón cancela)
+    // 4. Evaluar si entrar en Modo Portal de Configuración AP
+    bool noValidWifiConfig = (strlen(settingsMgr.get().wifiSsid) == 0);
+    if (btnActionPressedAtBoot || noValidWifiConfig) {
+        isPortalMode = true;
+        buzzer.beep(120, 1500);
+        ui.showConfigPortalScreen("WeatherClock-Setup", "192.168.4.1");
+        webServer.beginPortalAP("WeatherClock-Setup");
+        return;
+    }
+
+    // Melodía de bienvenida opcional
     if (AUDIO_STARTUP_MELODY) {
-        Serial.printf("[Audio] Reproduciendo melodia de inicio (Melodia: %d)...\n", ALARM_MELODY_TYPE);
+        Serial.printf("[Audio] Reproduciendo melodia de inicio (Melodia: %d)...\n", settingsMgr.get().alarmMelody);
         buzzer.playStartupMelody(PIN_BTN_PREV, PIN_BTN_NEXT, PIN_BTN_ACTION);
     }
 
-    // 3. Conectar a red Wi-Fi
-    connectWiFi();
+    // 5. Conectar a red Wi-Fi
+    ui.showBootScreen(settingsMgr.get().wifiSsid);
+    bool wifiOk = connectWiFi(settingsMgr.get().wifiSsid, settingsMgr.get().wifiPassword);
 
-    // 4. Inicializar servicio de tiempo (NTP)
+    // Si falló la conexión por completo y se desea portal de contingencia:
+    if (!wifiOk) {
+        Serial.println(F("[Wi-Fi] Fallo de conexion. Continuando con reloj offline..."));
+    }
+
+    // 6. Inicializar servicio de tiempo (NTP)
     Serial.println(F("[NTP] Configurando sincronizacion horaria y zona horaria..."));
     initTimeService(TIMEZONE_RULE, NTP_SERVER_1, NTP_SERVER_2);
 
@@ -192,13 +360,21 @@ void setup() {
         Serial.println(F("[NTP] Esperando respuesta de servidor de tiempo..."));
     }
 
-    // 5. Dibujar plantilla inicial (redibujado completo)
+    // 7. Iniciar Servidor Web en modo Estación (accesible en la red local)
+    if (wifiOk) {
+        webServer.beginStationServer();
+    }
+
+    // 8. Dibujar plantilla inicial (redibujado completo)
     switchPage(currentPage, true);
 
-    // 6. Carga inicial del pronóstico meteorológico si hay Wi-Fi
+    // 9. Carga inicial del pronóstico meteorológico si hay Wi-Fi
     if (WiFi.status() == WL_CONNECTED) {
         ui.updateStatusBar("Descargando pronostico Open-Meteo...");
-        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
+        if (weatherService.fetchWeather(settingsMgr.get().locationLat,
+                                       settingsMgr.get().locationLon,
+                                       weatherData,
+                                       HOURLY_FORECAST_STEP)) {
             if (currentPage != 4) {
                 ui.updateWeather(weatherData, currentPage);
             }
@@ -209,11 +385,20 @@ void setup() {
 }
 
 void loop() {
+    // Si estamos en Modo Portal de Configuración AP
+    if (isPortalMode) {
+        webServer.update();
+        buzzer.update();
+        delay(5);
+        return;
+    }
+
     unsigned long now = millis();
     bool isConnected = (WiFi.status() == WL_CONNECTED);
 
-    // Actualizar máquina de estados de buzzer
+    // Actualizar máquinas de estado
     buzzer.update();
+    webServer.update();
 
     // ----------------------------------------------------
     // GESTIÓN DE BOTONES
@@ -226,7 +411,6 @@ void loop() {
 
     // Si la pantalla estaba apagada y se pulsa cualquier botón, despertar
     if (anyButtonActivity && ui.isSleeping()) {
-        // Cooldown para evitar que el rebote físico al soltar el botón despierte la pantalla
         if (now - lastSleepToggleTime >= 350) {
             manualSleepActive = false;
             nightAutoSleepActive = false;
@@ -257,7 +441,7 @@ void loop() {
     if (anyButtonActivity && buzzer.isAlarming()) {
         buzzer.stop();
         timerState = TIMER_UI_IDLE;
-        timerRemainingSec = timerSelectedMinutes * 60;
+        timerRemainingSec = timerSelectedSec;
         timerTotalSec = timerRemainingSec;
         if (currentPage == 4) {
             ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
@@ -301,17 +485,15 @@ void loop() {
             // En página 4: Control del temporizador
             if (timerState == TIMER_UI_IDLE) {
                 if (evAction == BTN_EVENT_SHORT_CLICK) {
-                    // Incrementar de 5 en 5 minutos
-                    timerSelectedMinutes += TIMER_STEP_MINUTES;
-                    if (timerSelectedMinutes > TIMER_MAX_MINUTES) {
-                        timerSelectedMinutes = TIMER_MIN_MINUTES;
+                    timerSelectedSec += TIMER_STEP_MINUTES * 60;
+                    if (timerSelectedSec > TIMER_MAX_MINUTES * 60) {
+                        timerSelectedSec = TIMER_MIN_MINUTES * 60;
                     }
-                    timerTotalSec = timerSelectedMinutes * 60;
+                    timerTotalSec = timerSelectedSec;
                     timerRemainingSec = timerTotalSec;
                     if (BUZZER_KEY_BEEP) buzzer.beep(30);
                     ui.updateTimer(timerRemainingSec, timerTotalSec, timerState);
                 } else if (evAction == BTN_EVENT_LONG_PRESS) {
-                    // Confirmar e iniciar conteo regresivo
                     timerState = TIMER_UI_RUNNING;
                     lastTimerTick = now;
                     if (BUZZER_KEY_BEEP) buzzer.beep(120);
@@ -319,9 +501,8 @@ void loop() {
                 }
             } else if (timerState == TIMER_UI_RUNNING) {
                 if (evAction == BTN_EVENT_SHORT_CLICK) {
-                    // Detener / cancelar conteo regresivo
                     timerState = TIMER_UI_IDLE;
-                    timerRemainingSec = timerSelectedMinutes * 60;
+                    timerRemainingSec = timerSelectedSec;
                     timerTotalSec = timerRemainingSec;
                     if (BUZZER_KEY_BEEP) buzzer.beep(60);
                     ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
@@ -348,7 +529,6 @@ void loop() {
                 timerState = TIMER_UI_ALARM;
                 buzzer.startAlarm(TIMER_ALARM_DURATION_MS);
 
-                // Despertar pantalla si estaba en sleep
                 manualSleepActive = false;
                 nightAutoSleepActive = false;
                 manualWakeActive = false;
@@ -356,7 +536,6 @@ void loop() {
                     ui.wakeDisplay();
                 }
 
-                // Si no estaba en página 4, cambiar a página 4 para mostrar alarma
                 if (currentPage != 4) {
                     switchPage(4, true);
                 } else {
@@ -365,10 +544,9 @@ void loop() {
             }
         }
     } else if (timerState == TIMER_UI_ALARM) {
-        // Si el buzzer dejó de sonar por timeout (30 seg)
         if (!buzzer.isAlarming()) {
             timerState = TIMER_UI_IDLE;
-            timerRemainingSec = timerSelectedMinutes * 60;
+            timerRemainingSec = timerSelectedSec;
             timerTotalSec = timerRemainingSec;
             if (currentPage == 4) {
                 ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
@@ -414,7 +592,10 @@ void loop() {
         lastWeatherAttempt = now;
 
         Serial.println(F("[Loop] Actualizando datos de clima..."));
-        if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
+        if (weatherService.fetchWeather(settingsMgr.get().locationLat,
+                                       settingsMgr.get().locationLon,
+                                       weatherData,
+                                       HOURLY_FORECAST_STEP)) {
             if (currentPage != 4 && !ui.isSleeping()) {
                 ui.updateWeather(weatherData, currentPage);
             }
@@ -442,6 +623,6 @@ void loop() {
         }
     }
 
-    // Permitir ejecución suave de las tareas del ESP8266 (Wi-Fi, TCP, watchdog)
+    // Permitir ejecución suave de tareas de fondo
     delay(5);
 }
