@@ -171,7 +171,7 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) {
         ui.updateStatusBar("Descargando pronostico Open-Meteo...");
         if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
-            if (currentPage != 3) {
+            if (currentPage != 4) {
                 ui.updateWeather(weatherData, currentPage);
             }
             initialWeatherFetched = true;
@@ -361,7 +361,7 @@ void loop() {
 
         Serial.println(F("[Loop] Actualizando datos de clima..."));
         if (weatherService.fetchWeather(LOCATION_LAT, LOCATION_LON, weatherData, HOURLY_FORECAST_STEP)) {
-            if (currentPage != 3 && !ui.isSleeping()) {
+            if (currentPage != 4 && !ui.isSleeping()) {
                 ui.updateWeather(weatherData, currentPage);
             }
             initialWeatherFetched = true;
