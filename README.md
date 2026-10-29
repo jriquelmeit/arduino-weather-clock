@@ -108,16 +108,38 @@ Página 4 (Modo Temporizador - DISPLAY_PAGE_MODE = 4):
 +---------------------------------------------------------------+
 | IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
 +---------------------------------------------------------------+
+
+Página 5 (Modo Despertador / Alarmas Diarias - DISPLAY_PAGE_MODE = 5):
++---------------------------------------------------------------+
+| Santiago          Sabado, 17 de Octubre               [||||]  |
++---------------------------------------------------------------+
+| +-----------------------------------------------------------+ |
+| | DESPERTADOR / ALARMAS DIARIAS                             | |
+| |                                                           | |
+| |   [1]  07:00   Lun a Vie                          [ ON ]  | |
+| | > [2]  08:30   Fin de semana                      [ OFF]  | |
+| |   [3]  14:00   Todos los dias                     [ ON ]  | |
+| |   [4]  21:45   L X V                              [ ON ]  | |
+| | --------------------------------------------------------- | |
+| | Btn 1/2: Pagina  |  Btn 3: Elegir alarma                  | |
+| | Mantener Btn 3: Editar alarma seleccionada (ON/H/M/Dias)  | |
+| +-----------------------------------------------------------+ |
++---------------------------------------------------------------+
+| IP: 192.168.1.50 | RSSI: -58dBm | Act: 14:05                  |
++---------------------------------------------------------------+
 ```
 
 ---
 
 ## Características
 
-- **Panel de Control Web en Tiempo Real:** Servidor web integrado accesible desde cualquier dispositivo en la red local (`http://<IP-DEL-RELOJ>/`) para cambiar páginas, controlar el temporizador, activar/desactivar modo reposo (sleep) y cambiar/probar melodías de alarma.
+- **Panel de Control Web en Tiempo Real:** Servidor web integrado accesible desde cualquier dispositivo en la red local (`http://<IP-DEL-RELOJ>/`) para cambiar páginas, controlar el temporizador, configurar hasta 10 alarmas del despertador con selección de días, activar/desactivar modo reposo (sleep) y cambiar/probar melodías de alarma.
+- **Despertador y Alarmas Programadas (Página 5):** Soporte para hasta 10 alarmas diarias independientes guardadas en memoria persistente (LittleFS). Permite programar hora, minuto, días específicos (presets rápidos "Todos los días", "Lun a Vie", "Fin de semana" o selección personalizada día a día) y etiquetas de texto.
+- **Despertar y Modo Noche Inteligente:** Al sonar cualquier alarma, se reproduce la melodía seleccionada en el buzzer/parlante. Si la alarma se dispara en horario nocturno con la retroiluminación apagada (Sleep), enciende automáticamente la pantalla para alertar y, al ser silenciada por el usuario con cualquier botón o desde la web, detecta si aún es de noche y vuelve a apagar la pantalla automáticamente sin intervención adicional.
+- **Páginas Habilitables (`enabled_page_X`):** Cada una de las 5 páginas puede habilitarse o deshabilitarse de forma individual (tanto desde la configuración web como por código). La navegación por botones omite automáticamente las páginas desactivadas.
 - **Portal de Configuración Wi-Fi (Modo AP / Captive Portal):** Al enchufar o reiniciar manteniendo presionado el **Botón 3 (D6)** (o si no hay Wi-Fi configurado), el ESP8266 genera una red propia `WeatherClock-Setup` con portal cautivo (`192.168.4.1`) que permite escanear redes 2.4 GHz, ingresar contraseñas y configurar ciudad/coordenadas.
-- **Memoria Persistente (LittleFS):** La configuración de Wi-Fi, ubicación, página inicial y melodía se almacena de forma no volátil en la memoria flash interna del ESP8266, manteniéndose intacta al apagar o reiniciar el reloj.
-- **Navegación Interactiva por Botones:** Navegación cíclica entre 4 páginas (Páginas 1, 2, 3 y 4) mediante botones físicos con filtro antirrebote.
+- **Memoria Persistente (LittleFS):** La configuración de Wi-Fi, ubicación, página inicial, páginas habilitadas, alarmas y melodía se almacena de forma no volátil en la memoria flash interna del ESP8266, manteniéndose intacta al apagar o reiniciar el reloj.
+- **Navegación Interactiva por Botones:** Navegación cíclica entre páginas activas (Páginas 1 a 5) mediante botones físicos con filtro antirrebote y soporte para ajuste interactivo de alarmas y timer.
 - **Página 3 (Dashboard Central con Reloj Gigante):** Vista con Reloj Gigante en verde lima, barra de segundos fluida (0..59s), Santoral católico del día, condición, temperatura, humedad e Índice UV actual y máximo proyectado.
 - **Página de Temporizador (Timer en Página 4):** Contador regresivo ajustable de 5 en 5 minutos (5 a 60 min). Ejecución no bloqueante en segundo plano con alarma sonora mediante buzzer o parlante al llegar a cero.
 - **Audio Polifónico y 13 Melodías Retro:** Soporte para buzzer activo o parlante de cono de 8Ω (0.5W a 2W) mediante transistor NPN (2N2222). Generación de frecuencias reales con `tone()` para reproducir 13 melodías completas estilo chiptune (Star Wars, Super Mario Bros, The Legend of Zelda, Tetris, Pac-Man, Nokia Tune, Cantina Band, Doom, Casio Beep, Volver al Futuro, Los Simpson, Sonic the Hedgehog y Alien) con cancelación interactiva por botones o desde la web.
@@ -270,15 +292,18 @@ Para reproducir melodías polifónicas estilo chiptune (Marcha Imperial de Star 
 
 | Botón | Pantalla Activa | Pulsación Corta (Click) | Pulsación Larga (> 1 seg) |
 | :--- | :--- | :--- | :--- |
-| **Botón 1 (Prev / D1)** | Cualquiera | Retroceder página ($4 \rightarrow 3 \rightarrow 2 \rightarrow 1 \rightarrow 4$) | - |
-| **Botón 2 (Next / D2)** | Cualquiera | Avanzar página ($1 \rightarrow 2 \rightarrow 3 \rightarrow 4 \rightarrow 1$) | - |
+| **Botón 1 (Prev / D1)** | Modo Normal (Cualquiera) | Retroceder página activa ($5 \rightarrow 4 \rightarrow 3 \rightarrow 2 \rightarrow 1 \rightarrow 5$) | - |
+| **Botón 2 (Next / D2)** | Modo Normal (Cualquiera) | Avanzar página activa ($1 \rightarrow 2 \rightarrow 3 \rightarrow 4 \rightarrow 5 \rightarrow 1$) | - |
 | **Botón 3 (Action / D6)** | Al enchufar / encender | - | **Activar Modo Portal AP (Configuración Wi-Fi)** |
 | **Botón 3 (Action / D6)** | Página 1 (Diario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 2 (Horario) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 3 (Dashboard Central) | **Apagar / Encender pantalla** (Sleep Toggle) | - |
 | **Botón 3 (Action / D6)** | Página 4 (Timer - Ajuste) | Sumar tiempo (**+5 min**) | **Iniciar conteo regresivo** |
 | **Botón 3 (Action / D6)** | Página 4 (Timer - Conteo) | **Detener / Cancelar** conteo | - |
-| **Cualquier Botón** | Alarma sonando | **Silenciar alarma del buzzer** | Silenciar alarma del buzzer |
+| **Botón 3 (Action / D6)** | Página 5 (Despertador - Normal) | Cambiar alarma seleccionada (**1..10**) | **Entrar a Modo Edición** |
+| **Botones 1 y 2 (D1 / D2)**| Página 5 (Despertador - Edición) | Ajustar valor actual (**-1 / +1** ó **-5m / +5m**) | - |
+| **Botón 3 (Action / D6)** | Página 5 (Despertador - Edición) | Avanzar campo (**ON/OFF $\rightarrow$ Hora $\rightarrow$ Min $\rightarrow$ Días**) | **Guardar cambios y Salir** |
+| **Cualquier Botón** | Alarma sonando (Despertador / Timer)| **Silenciar alarma del buzzer** | **Silenciar alarma del buzzer** |
 | **Cualquier Botón** | Pantalla en reposo (Sleep) | **Encender pantalla / Despertar** | Encender pantalla / Despertar |
 
 ---
@@ -298,7 +323,7 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 
 #### 1. Obtener Estado en Tiempo Real
 * **Método:** `GET /api/status`
-* **Descripción:** Retorna la información meteorológica actual, estado de la pantalla, estado del temporizador y ajustes activos.
+* **Descripción:** Retorna la información meteorológica actual, estado de la pantalla, estado del temporizador, páginas habilitadas y ajustes activos.
 * **Respuesta de Ejemplo:**
   ```json
   {
@@ -323,6 +348,13 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
       "lon": "-70.6542",
       "melody": 1,
       "page": 1
+    },
+    "enabled_pages": {
+      "1": true,
+      "2": true,
+      "3": true,
+      "4": true,
+      "5": true
     }
   }
   ```
@@ -331,15 +363,17 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 ---
 
 #### 2. Cambiar Página en Pantalla
-* **Método:** `POST /api/page?page={1..4}`
+* **Método:** `POST /api/page?page={1..5}`
 * **Parámetros:**
   * `page=1`: Página 1 (Pronóstico Diario a 2 días)
   * `page=2`: Página 2 (Pronóstico Horario)
   * `page=3`: Página 3 (Dashboard Central con Reloj Gigante y Santoral)
   * `page=4`: Página 4 (Temporizador)
+  * `page=5`: Página 5 (Despertador / Alarmas Diarias)
+* **Nota:** Si la página solicitada se encuentra deshabilitada (`enabled_page_X = false`), el endpoint retorna error 400.
 * **Ejemplo (curl):**
   ```bash
-  curl -X POST "http://192.168.1.50/api/page?page=3"
+  curl -X POST "http://192.168.1.50/api/page?page=5"
   ```
 
 ---
@@ -404,7 +438,67 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 
 ---
 
-#### 6. Escaneo de Redes Wi-Fi
+#### 6. Gestión del Despertador y Alarmas Diarias
+* **Método:** `GET /api/alarms`
+* **Descripción:** Retorna la lista de las 10 alarmas configuradas.
+* **Respuesta de Ejemplo:**
+  ```json
+  {
+    "status": "ok",
+    "count": 10,
+    "alarms": [
+      {
+        "id": 1,
+        "enabled": true,
+        "hour": 7,
+        "minute": 0,
+        "days": 62,
+        "days_str": "Lun a Vie",
+        "label": "Trabajo"
+      },
+      {
+        "id": 2,
+        "enabled": false,
+        "hour": 8,
+        "minute": 30,
+        "days": 65,
+        "days_str": "Fin de semana",
+        "label": "Descanso"
+      }
+    ]
+  }
+  ```
+* **Método:** `POST /api/alarms`
+* **Parámetros soportados:**
+  * **Alternar estado ON/OFF:** `?action=toggle&id={1..10}`
+  * **Modificar alarma:** `?action=set&id={1..10}&enabled={0|1}&hour={0..23}&minute={0..59}&days={0..127}&label={Texto}`
+    * `days`: Máscara de bits (Bit 0 = Domingo, Bit 1 = Lunes, ..., Bit 6 = Sábado).
+      * `127` (0x7F): Todos los días
+      * `62` (0x3E): Lunes a Viernes
+      * `65` (0x41): Sábado y Domingo
+* **Ejemplos (curl):**
+  ```bash
+  # Activar o desactivar rápidamente la alarma 1
+  curl -X POST "http://192.168.1.50/api/alarms?action=toggle&id=1"
+
+  # Programar la alarma 2 a las 07:15 de Lunes a Viernes
+  curl -X POST "http://192.168.1.50/api/alarms?action=set&id=2&enabled=1&hour=7&minute=15&days=62&label=Gimnasio"
+  ```
+
+---
+
+#### 7. Gestión de Páginas Habilitadas
+* **Método:** `GET /api/pages` / `POST /api/pages`
+* **Descripción:** Permite consultar y activar/desactivar qué pantallas forman parte del ciclo de navegación.
+* **Ejemplo (curl):**
+  ```bash
+  # Habilitar solo páginas 1, 3 y 5 (desactivar 2 y 4)
+  curl -X POST "http://192.168.1.50/api/pages?p1=1&p2=0&p3=1&p4=0&p5=1"
+  ```
+
+---
+
+#### 8. Escaneo de Redes Wi-Fi
 * **Método:** `GET /scan`
 * **Descripción:** Escanea las redes 2.4 GHz cercanas y retorna un arreglo JSON con el SSID y potencia de señal (RSSI).
 * **Respuesta de Ejemplo:**
@@ -417,9 +511,9 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 
 ---
 
-#### 7. Guardar Configuración Persistente
+#### 9. Guardar Configuración Persistente
 * **Método:** `POST /save`
-* **Descripción:** Recibe los datos del formulario (`ssid`, `password`, `location`, `lat`, `lon`, `melody`, `page`), los escribe en `/config.json` (LittleFS) y reinicia el ESP8266 automáticamente.
+* **Descripción:** Recibe los datos del formulario (`ssid`, `password`, `location`, `lat`, `lon`, `melody`, `page`, `p1`..`p5`, `flash`), los escribe en `/config.json` (LittleFS) y reinicia el ESP8266 automáticamente.
 
 ---
 
@@ -458,7 +552,21 @@ Edita `include/config.h` con los datos de tu red y coordenadas geográficas:
 // Modo de Pantalla (Página activa)
 // 1: Página 1 - Pronóstico diario a 2 días (Por defecto)
 // 2: Página 2 - Pronóstico por horas (4 bloques)
+// 3: Página 3 - Dashboard Central (Reloj Gigante + Santoral + UV)
+// 4: Página 4 - Temporizador / Timer
+// 5: Página 5 - Despertador / Alarmas Diarias
 #define DISPLAY_PAGE_MODE      1
+#define TOTAL_PAGES            5
+
+// Páginas habilitadas individualmente (true / false)
+#define ENABLED_PAGE_1         true
+#define ENABLED_PAGE_2         true
+#define ENABLED_PAGE_3         true
+#define ENABLED_PAGE_4         true
+#define ENABLED_PAGE_5         true
+
+// Despertador (Página 5)
+#define MAX_DAILY_ALARMS       10
 
 // Intervalo entre pronósticos para la Página 2 (1, 2, 3 o n horas)
 #define HOURLY_FORECAST_STEP   2

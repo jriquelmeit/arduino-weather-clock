@@ -3,6 +3,8 @@
 #if defined(ESP8266)
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
+#include "config.h"
+#include "buzzer_controller.h"
 
 static const char SETUP_PAGE_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <html lang="es">
@@ -105,7 +107,29 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
           <option value="2">Página 2: Pronóstico por Horas</option>
           <option value="3">Página 3: Dashboard Reloj Gigante</option>
           <option value="4">Página 4: Temporizador</option>
+          <option value="5">Página 5: Despertador</option>
         </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Páginas Habilitadas en Pantalla</h2>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p1" name="p1" value="1" style="width:auto"> Página 1: Clima Diario (2 días)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p2" name="p2" value="1" style="width:auto"> Página 2: Pronóstico por Horas
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p3" name="p3" value="1" style="width:auto"> Página 3: Dashboard Reloj Gigante + Santoral
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p4" name="p4" value="1" style="width:auto"> Página 4: Temporizador
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p5" name="p5" value="1" style="width:auto"> Página 5: Despertador
+        </label>
       </div>
     </div>
 
@@ -148,6 +172,18 @@ fetch('/api/status')
       if (d.config.melody) document.getElementById('melody').value = d.config.melody;
       if (d.config.page) document.getElementById('page').value = d.config.page;
     }
+    if (d.enabled_pages) {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById('p' + i);
+        if (el) el.checked = !!d.enabled_pages[String(i)];
+      }
+    } else {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById('p' + i);
+        if (el) el.checked = true;
+      }
+    }
+  }).catch(()=>{});
   }).catch(()=>{});
 </script>
 </body>
@@ -173,6 +209,7 @@ body{background:var(--bg);color:var(--text);display:flex;justify-content:center;
 .badge{background:#334155;color:var(--accent);padding:2px 8px;border-radius:12px;font-size:0.75rem}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .stat-box{background:#0f172a;padding:10px;border-radius:8px;border:1px solid var(--border);text-align:center}
 .stat-val{font-size:1.2rem;font-weight:700;color:var(--accent);margin-top:2px}
 .stat-lbl{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase}
@@ -231,13 +268,67 @@ body{background:var(--bg);color:var(--text);display:flex;justify-content:center;
       <span>Control de Pantalla TFT</span>
       <span id="sleep_badge" class="badge">Encendida</span>
     </div>
-    <div class="grid-4" style="margin-bottom:10px">
+    <div class="grid-5" style="margin-bottom:10px" id="page_buttons_grid">
       <button class="btn btn-outline" id="btn_page1" onclick="setPage(1)">P1: Diario</button>
       <button class="btn btn-outline" id="btn_page2" onclick="setPage(2)">P2: Horas</button>
       <button class="btn btn-outline" id="btn_page3" onclick="setPage(3)">P3: Reloj</button>
       <button class="btn btn-outline" id="btn_page4" onclick="setPage(4)">P4: Timer</button>
+      <button class="btn btn-outline" id="btn_page5" onclick="setPage(5)">P5: Alarma</button>
     </div>
     <button class="btn btn-outline" id="btn_sleep" onclick="toggleSleep()">Apagar Pantalla (Sleep)</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Despertador / Alarmas Diarias</span>
+      <span id="alarms_count_badge" class="badge">10 Alarmas</span>
+    </div>
+
+    <!-- Lista interactiva de alarmas -->
+    <div id="alarms_list_container" style="display:flex;flex-direction:column;gap:6px">
+      <!-- Se carga dinámicamente -->
+    </div>
+
+    <!-- Editor de alarma -->
+    <div id="alarm_editor" style="display:none;background:#0f172a;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px">
+      <div style="font-size:0.9rem;font-weight:600;color:var(--accent);margin-bottom:8px" id="editor_title">Editar Alarma</div>
+      <input type="hidden" id="edit_alarm_id" value="1">
+      <div class="row" style="margin-bottom:8px">
+        <div style="flex:1">
+          <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Hora (00..23)</label>
+          <input type="number" id="edit_alarm_hour" min="0" max="23" style="width:100%;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:1.1rem;font-weight:700">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Minuto (00..59)</label>
+          <input type="number" id="edit_alarm_min" min="0" max="59" style="width:100%;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:1.1rem;font-weight:700">
+        </div>
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Etiqueta / Nombre</label>
+        <input type="text" id="edit_alarm_label" maxlength="16" placeholder="Ej: Trabajo" style="width:100%;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem">
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Días de repetición</label>
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <button type="button" class="btn btn-outline" style="padding:4px;font-size:0.75rem;flex:1" onclick="setEditorDaysPreset('all')">Todos</button>
+          <button type="button" class="btn btn-outline" style="padding:4px;font-size:0.75rem;flex:1" onclick="setEditorDaysPreset('weekdays')">Lun-Vie</button>
+          <button type="button" class="btn btn-outline" style="padding:4px;font-size:0.75rem;flex:1" onclick="setEditorDaysPreset('weekend')">FinSem</button>
+        </div>
+        <div style="display:flex;justify-content:space-around;gap:2px;background:var(--card);padding:6px;border-radius:6px;border:1px solid var(--border)">
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_1"><span>Lun</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_2"><span>Mar</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_3"><span>Mie</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_4"><span>Jue</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_5"><span>Vie</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_6"><span>Sab</span></label>
+          <label style="font-size:0.75rem;display:flex;flex-direction:column;align-items:center;cursor:pointer"><input type="checkbox" id="d_0"><span>Dom</span></label>
+        </div>
+      </div>
+      <div class="grid-2">
+        <button type="button" class="btn btn-success" onclick="saveAlarmFromEditor()">Guardar Alarma</button>
+        <button type="button" class="btn btn-outline" onclick="closeAlarmEditor()">Cancelar</button>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -342,9 +433,14 @@ function updateStatus() {
       curPage = d.page;
       isSleeping = d.sleeping;
 
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         const btn = document.getElementById('btn_page' + i);
-        if (btn) btn.classList.toggle('active', curPage === i);
+        if (btn) {
+          btn.classList.toggle('active', curPage === i);
+          if (d.enabled_pages && d.enabled_pages[String(i)] !== undefined) {
+            btn.style.display = d.enabled_pages[String(i)] ? 'inline-block' : 'none';
+          }
+        }
       }
 
       const slpBtn = document.getElementById('btn_sleep');
@@ -402,6 +498,139 @@ function updateStatus() {
     }).catch(()=>{});
 }
 
+let cachedAlarms = [];
+
+function loadAlarms() {
+  fetch('/api/alarms')
+    .then(r => r.json())
+    .then(d => {
+      if (!d.alarms) return;
+      cachedAlarms = d.alarms;
+      renderAlarmsList();
+    }).catch(()=>{});
+}
+
+function renderAlarmsList() {
+  const container = document.getElementById('alarms_list_container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  cachedAlarms.forEach(a => {
+    const row = document.createElement('div');
+    row.style = 'display:flex;align-items:center;justify-content:space-between;background:#0f172a;padding:8px 10px;border-radius:8px;border:1px solid var(--border)';
+
+    const left = document.createElement('div');
+    left.style = 'display:flex;align-items:center;gap:10px';
+
+    const idBadge = document.createElement('span');
+    idBadge.style = 'color:var(--text-muted);font-size:0.75rem;font-weight:700;width:24px';
+    idBadge.textContent = '[' + a.id + ']';
+
+    const timeEl = document.createElement('span');
+    timeEl.style = 'font-size:1.2rem;font-weight:700;letter-spacing:1px;color:' + (a.enabled ? 'var(--text)' : 'var(--text-muted)');
+    timeEl.textContent = String(a.hour).padStart(2,'0') + ':' + String(a.minute).padStart(2,'0');
+
+    const info = document.createElement('div');
+    info.style = 'display:flex;flex-direction:column;font-size:0.75rem';
+    const daysEl = document.createElement('span');
+    daysEl.style = 'color:' + (a.enabled ? 'var(--accent)' : 'var(--text-muted)');
+    daysEl.textContent = a.days_str || 'Personalizado';
+    const labelEl = document.createElement('span');
+    labelEl.style = 'color:var(--text-muted)';
+    labelEl.textContent = a.label || '';
+    info.appendChild(daysEl);
+    if (a.label) info.appendChild(labelEl);
+
+    left.appendChild(idBadge);
+    left.appendChild(timeEl);
+    left.appendChild(info);
+
+    const right = document.createElement('div');
+    right.style = 'display:flex;align-items:center;gap:6px';
+
+    const btnTgl = document.createElement('button');
+    btnTgl.className = 'btn ' + (a.enabled ? 'btn-success' : 'btn-outline');
+    btnTgl.style = 'padding:4px 8px;font-size:0.75rem;width:auto';
+    btnTgl.textContent = a.enabled ? 'ON' : 'OFF';
+    btnTgl.onclick = () => toggleAlarm(a.id);
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn btn-outline';
+    btnEdit.style = 'padding:4px 8px;font-size:0.75rem;width:auto';
+    btnEdit.textContent = 'Editar';
+    btnEdit.onclick = () => openAlarmEditor(a.id);
+
+    right.appendChild(btnTgl);
+    right.appendChild(btnEdit);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    container.appendChild(row);
+  });
+}
+
+function toggleAlarm(id) {
+  fetch('/api/alarms?action=toggle&id=' + id, { method: 'POST' })
+    .then(r => r.json())
+    .then(() => loadAlarms());
+}
+
+function openAlarmEditor(id) {
+  const alarm = cachedAlarms.find(a => a.id === id);
+  if (!alarm) return;
+
+  document.getElementById('edit_alarm_id').value = alarm.id;
+  document.getElementById('edit_alarm_hour').value = alarm.hour;
+  document.getElementById('edit_alarm_min').value = alarm.minute;
+  document.getElementById('edit_alarm_label').value = alarm.label || '';
+  document.getElementById('editor_title').textContent = 'Editar Alarma [' + alarm.id + ']';
+
+  for (let i = 0; i < 7; i++) {
+    const chk = document.getElementById('d_' + i);
+    if (chk) chk.checked = !!(alarm.days & (1 << i));
+  }
+
+  document.getElementById('alarm_editor').style.display = 'block';
+  document.getElementById('alarm_editor').scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeAlarmEditor() {
+  document.getElementById('alarm_editor').style.display = 'none';
+}
+
+function setEditorDaysPreset(preset) {
+  let mask = 0x7F;
+  if (preset === 'weekdays') mask = 0x3E; // L M X J V
+  if (preset === 'weekend') mask = 0x41;  // S D
+  for (let i = 0; i < 7; i++) {
+    const chk = document.getElementById('d_' + i);
+    if (chk) chk.checked = !!(mask & (1 << i));
+  }
+}
+
+function saveAlarmFromEditor() {
+  const id = document.getElementById('edit_alarm_id').value;
+  const h = document.getElementById('edit_alarm_hour').value;
+  const m = document.getElementById('edit_alarm_min').value;
+  const lbl = encodeURIComponent(document.getElementById('edit_alarm_label').value);
+
+  let daysMask = 0;
+  for (let i = 0; i < 7; i++) {
+    const chk = document.getElementById('d_' + i);
+    if (chk && chk.checked) daysMask |= (1 << i);
+  }
+
+  const existing = cachedAlarms.find(a => a.id == id);
+  const en = existing ? (existing.enabled ? 1 : 0) : 1;
+
+  fetch('/api/alarms?action=set&id=' + id + '&enabled=' + en + '&hour=' + h + '&minute=' + m + '&days=' + daysMask + '&label=' + lbl, { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      closeAlarmEditor();
+      loadAlarms();
+    });
+}
+
 function setPage(p) {
   fetch('/api/page?page=' + p, { method: 'POST' }).then(() => updateStatus());
 }
@@ -431,6 +660,7 @@ function stopAlarm() {
 }
 
 updateStatus();
+loadAlarms();
 setInterval(updateStatus, 2500);
 </script>
 </body>
@@ -541,6 +771,8 @@ void WebServerService::setupCommonRoutes() {
     _server.on("/scan", HTTP_GET, std::bind(&WebServerService::handleScanWifi, this));
     _server.on("/save", HTTP_POST, std::bind(&WebServerService::handleSaveConfig, this));
     _server.on("/api/status", HTTP_GET, std::bind(&WebServerService::handleApiStatus, this));
+    _server.on("/api/alarms", HTTP_ANY, std::bind(&WebServerService::handleApiAlarms, this));
+    _server.on("/api/pages", HTTP_ANY, std::bind(&WebServerService::handleApiPages, this));
 
     // Rutas de detección de portal cautivo para celulares Android, iOS y Windows
     _server.on("/generate_204", [this]() {
@@ -582,6 +814,8 @@ void WebServerService::setupStationRoutes() {
     _server.on("/api/sleep", HTTP_POST, std::bind(&WebServerService::handleApiSleep, this));
     _server.on("/api/timer", HTTP_POST, std::bind(&WebServerService::handleApiTimer, this));
     _server.on("/api/alarm", HTTP_POST, std::bind(&WebServerService::handleApiAlarm, this));
+    _server.on("/api/alarms", HTTP_ANY, std::bind(&WebServerService::handleApiAlarms, this));
+    _server.on("/api/pages", HTTP_ANY, std::bind(&WebServerService::handleApiPages, this));
 
     _server.onNotFound([this]() {
         _server.send(404, "text/plain", "404: Ruta no encontrada");
@@ -627,20 +861,34 @@ void WebServerService::handleSaveConfig() {
     uint8_t melody = _server.arg("melody").toInt();
     uint8_t page = _server.arg("page").toInt();
 
-    if (melody < 1 || melody > 13) melody = 1;
-    if (page < 1 || page > 4) page = 1;
+    bool p1 = _server.hasArg("p1");
+    bool p2 = _server.hasArg("p2");
+    bool p3 = _server.hasArg("p3");
+    bool p4 = _server.hasArg("p4");
+    bool p5 = _server.hasArg("p5");
+    if (!p1 && !p2 && !p3 && !p4 && !p5) {
+        p1 = true; p2 = true; p3 = true; p4 = true; p5 = true;
+    }
+
+    if (melody < 1 || melody > MELODY_MAX_TYPE) melody = 1;
+    if (page < 1 || page > TOTAL_PAGES) page = 1;
 
     Serial.printf("[Web] Recibidos nuevos parametros: SSID=%s, Ciudad=%s, Lat=%s, Lon=%s, Melodia=%d, Pagina=%d\n",
                   ssid.c_str(), loc.c_str(), lat.c_str(), lon.c_str(), melody, page);
 
     bool ok = false;
     if (_cb.onSaveConfig) {
-        ok = _cb.onSaveConfig(ssid.c_str(), pass.c_str(), loc.c_str(), lat.c_str(), lon.c_str(), melody, page);
+        ok = _cb.onSaveConfig(ssid.c_str(), pass.c_str(), loc.c_str(), lat.c_str(), lon.c_str(), melody, page, p1, p2, p3, p4, p5);
     } else {
         _settings.setWifi(ssid.c_str(), pass.c_str());
         _settings.setLocation(loc.c_str(), lat.c_str(), lon.c_str());
         _settings.setAlarmMelody(melody);
         _settings.setDefaultPage(page);
+        _settings.setPageEnabled(1, p1);
+        _settings.setPageEnabled(2, p2);
+        _settings.setPageEnabled(3, p3);
+        _settings.setPageEnabled(4, p4);
+        _settings.setPageEnabled(5, p5);
         ok = _settings.save();
     }
 
@@ -694,6 +942,13 @@ void WebServerService::handleApiStatus() {
     cfg["melody"] = s.alarmMelody;
     cfg["page"] = s.defaultPage;
 
+    JsonObject pagesObj = doc["enabled_pages"].to<JsonObject>();
+    pagesObj["1"] = s.enabledPage1;
+    pagesObj["2"] = s.enabledPage2;
+    pagesObj["3"] = s.enabledPage3;
+    pagesObj["4"] = s.enabledPage4;
+    pagesObj["5"] = s.enabledPage5;
+
     String json;
     serializeJson(doc, json);
     _server.send(200, "application/json", json);
@@ -702,13 +957,20 @@ void WebServerService::handleApiStatus() {
 void WebServerService::handleApiPage() {
     if (_server.hasArg("page")) {
         uint8_t page = _server.arg("page").toInt();
-        if (page >= 1 && page <= 4 && _cb.onPageChange) {
-            _cb.onPageChange(page);
-            _server.send(200, "application/json", "{\"status\":\"ok\"}");
-            return;
+        if (page >= 1 && page <= TOTAL_PAGES) {
+            bool enabled = _cb.isPageEnabled ? _cb.isPageEnabled(page) : _settings.get().isPageEnabled(page);
+            if (!enabled) {
+                _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Pagina deshabilitada\"}");
+                return;
+            }
+            if (_cb.onPageChange) {
+                _cb.onPageChange(page);
+                _server.send(200, "application/json", "{\"status\":\"ok\"}");
+                return;
+            }
         }
     }
-    _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Pagina invalida (1..4)\"}");
+    _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Pagina invalida (1..5)\"}");
 }
 
 void WebServerService::handleApiSleep() {
@@ -782,6 +1044,140 @@ void WebServerService::handleApiAlarm() {
     }
 
     _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Accion de alarma invalida\"}");
+}
+
+void WebServerService::handleApiAlarms() {
+    if (_server.method() == HTTP_GET) {
+        JsonDocument doc;
+        doc["status"] = "ok";
+        doc["count"] = MAX_DAILY_ALARMS;
+
+        JsonArray arr = doc["alarms"].to<JsonArray>();
+        const DailyAlarm* alarms = _settings.get().alarms;
+        for (uint8_t i = 0; i < MAX_DAILY_ALARMS; i++) {
+            JsonObject a = arr.add<JsonObject>();
+            a["id"] = alarms[i].id;
+            a["enabled"] = alarms[i].enabled;
+            a["hour"] = alarms[i].hour;
+            a["minute"] = alarms[i].minute;
+            a["days"] = alarms[i].days;
+            char dStr[24];
+            formatAlarmDaysString(alarms[i].days, dStr, sizeof(dStr));
+            a["days_str"] = dStr;
+            a["label"] = alarms[i].label;
+        }
+
+        String resp;
+        serializeJson(doc, resp);
+        _server.send(200, "application/json", resp);
+        return;
+    }
+
+    if (_server.method() == HTTP_POST) {
+        String action = _server.arg("action");
+
+        if (action == "toggle") {
+            int id = _server.arg("id").toInt();
+            if (id >= 1 && id <= MAX_DAILY_ALARMS) {
+                bool newState = false;
+                if (_cb.onToggleAlarm) {
+                    newState = _cb.onToggleAlarm(id);
+                } else {
+                    newState = _settings.toggleAlarm(id - 1);
+                    _settings.save();
+                }
+                _server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"toggled\",\"id\":" + String(id) + ",\"enabled\":" + (newState ? "true" : "false") + "}");
+                return;
+            }
+            _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"ID invalido\"}");
+            return;
+        }
+
+        if (action == "set") {
+            int id = _server.arg("id").toInt();
+            if (id >= 1 && id <= MAX_DAILY_ALARMS) {
+                bool en = _server.hasArg("enabled") ? (_server.arg("enabled") == "1" || _server.arg("enabled") == "true") : false;
+                int h = _server.arg("hour").toInt();
+                int m = _server.arg("minute").toInt();
+                int d = _server.hasArg("days") ? _server.arg("days").toInt() : ALARM_DAYS_ALL;
+                String lbl = _server.arg("label");
+
+                if (h < 0) { h = 0; }
+                if (h > 23) { h = 23; }
+                if (m < 0) { m = 0; }
+                if (m > 59) { m = 59; }
+                if (d < 0 || d > 127) d = ALARM_DAYS_ALL;
+
+                bool ok = false;
+                if (_cb.onSetAlarm) {
+                    ok = _cb.onSetAlarm(id, en, (uint8_t)h, (uint8_t)m, (uint8_t)d, lbl.c_str());
+                } else {
+                    DailyAlarm a;
+                    a.id = id;
+                    a.enabled = en;
+                    a.hour = (uint8_t)h;
+                    a.minute = (uint8_t)m;
+                    a.days = (uint8_t)d;
+                    strncpy(a.label, lbl.c_str(), ALARM_LABEL_MAX_LEN);
+                    a.label[ALARM_LABEL_MAX_LEN] = '\0';
+                    ok = _settings.setAlarm(id - 1, a);
+                    if (ok) _settings.save();
+                }
+
+                if (ok) {
+                    _server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"set\",\"id\":" + String(id) + "}");
+                } else {
+                    _server.send(500, "application/json", "{\"status\":\"error\",\"message\":\"Error guardando alarma\"}");
+                }
+                return;
+            }
+            _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"ID invalido\"}");
+            return;
+        }
+
+        _server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"Accion desconocida\"}");
+        return;
+    }
+
+    _server.send(405, "application/json", "{\"status\":\"error\",\"message\":\"Metodo no permitido\"}");
+}
+
+void WebServerService::handleApiPages() {
+    if (_server.method() == HTTP_GET) {
+        JsonDocument doc;
+        doc["status"] = "ok";
+        JsonObject p = doc["pages"].to<JsonObject>();
+        const AppSettings& s = _settings.get();
+        p["1"] = s.enabledPage1;
+        p["2"] = s.enabledPage2;
+        p["3"] = s.enabledPage3;
+        p["4"] = s.enabledPage4;
+        p["5"] = s.enabledPage5;
+
+        String resp;
+        serializeJson(doc, resp);
+        _server.send(200, "application/json", resp);
+        return;
+    }
+
+    if (_server.method() == HTTP_POST) {
+        for (uint8_t i = 1; i <= TOTAL_PAGES; i++) {
+            String argName = "p" + String(i);
+            if (_server.hasArg(argName)) {
+                bool en = (_server.arg(argName) == "1" || _server.arg(argName) == "true");
+                if (_cb.onSetPageEnabled) {
+                    _cb.onSetPageEnabled(i, en);
+                } else {
+                    _settings.setPageEnabled(i, en);
+                }
+            }
+        }
+        _settings.save();
+        _server.send(200, "application/json", "{\"status\":\"ok\"}");
+        return;
+    }
+
+    _server.send(405, "application/json", "{\"status\":\"error\",\"message\":\"Metodo no permitido\"}");
 }
 
 #endif

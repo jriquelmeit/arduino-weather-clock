@@ -27,6 +27,19 @@ static uint32_t timerTotalSec = TIMER_DEFAULT_MINUTES * 60;
 static uint32_t timerRemainingSec = TIMER_DEFAULT_MINUTES * 60;
 static unsigned long lastTimerTick = 0;
 
+// Estado del Despertador (Página 5)
+static uint8_t selectedAlarmIndex = 0;
+static bool alarmEditMode = false;
+static AlarmEditField alarmEditField = ALARM_FIELD_NONE;
+
+// Estado de disparo de la alarma diaria
+static bool dailyAlarmActive = false;
+static unsigned long dailyAlarmStartTime = 0;
+static int lastDailyAlarmMinute = -1;
+static bool alarmWokeFromSleep = false;
+static char currentAlarmLabel[ALARM_LABEL_MAX_LEN + 1] = "";
+static char currentAlarmTimeStr[8] = "";
+
 // Modo noche y reposo
 static bool manualSleepActive = false;
 static bool nightAutoSleepActive = false;
@@ -41,10 +54,77 @@ static unsigned long lastWifiStatusCheck = 0;
 static bool initialWeatherFetched = false;
 
 void switchPage(uint8_t newPage, bool fullRedraw = false);
+void triggerDailyAlarm(const DailyAlarm& alarm, const DateTimeInfo& dt);
+void stopDailyAlarm();
+void checkDailyAlarms(const DateTimeInfo& dt);
 
 // Declaración previa de WebServerCallbacks
 static WebServerCallbacks buildServerCallbacks();
 static WebServerService webServer(settingsMgr, buildServerCallbacks());
+
+void triggerDailyAlarm(const DailyAlarm& alarm, const DateTimeInfo& dt) {
+    dailyAlarmActive = true;
+    dailyAlarmStartTime = millis();
+    alarmWokeFromSleep = ui.isSleeping() || nightAutoSleepActive || manualSleepActive;
+
+    strncpy(currentAlarmLabel, alarm.label, sizeof(currentAlarmLabel) - 1);
+    currentAlarmLabel[sizeof(currentAlarmLabel) - 1] = '\0';
+    snprintf(currentAlarmTimeStr, sizeof(currentAlarmTimeStr), "%02d:%02d", alarm.hour, alarm.minute);
+
+    Serial.printf("[Alarma] !DESPERTADOR ACTIVADO! Alarma [%u] %s - %s\n", alarm.id, currentAlarmTimeStr, currentAlarmLabel);
+
+    if (ui.isSleeping()) {
+        ui.wakeDisplay();
+    }
+    ui.showAlarmAlert(currentAlarmTimeStr, currentAlarmLabel);
+    buzzer.startAlarm(ALARM_MAX_RING_DURATION_MS);
+}
+
+void stopDailyAlarm() {
+    if (!dailyAlarmActive) return;
+    Serial.println(F("[Alarma] Despertador silenciado."));
+    dailyAlarmActive = false;
+    buzzer.stop();
+
+    DateTimeInfo dt;
+    bool isNight = false;
+    if (getCurrentDateTime(dt)) {
+        if (NIGHT_MODE_START_HOUR > NIGHT_MODE_END_HOUR) {
+            isNight = (dt.hour >= NIGHT_MODE_START_HOUR || dt.hour < NIGHT_MODE_END_HOUR);
+        } else {
+            isNight = (dt.hour >= NIGHT_MODE_START_HOUR && dt.hour < NIGHT_MODE_END_HOUR);
+        }
+    }
+
+    if (NIGHT_MODE_ENABLED && isNight && (alarmWokeFromSleep || nightAutoSleepActive)) {
+        Serial.println(F("[Alarma] Regresando a modo noche (pantalla apagada)."));
+        nightAutoSleepActive = true;
+        manualWakeActive = false;
+        manualSleepActive = false;
+        ui.sleepDisplay();
+    } else {
+        alarmWokeFromSleep = false;
+        manualWakeActive = false;
+        ui.wakeDisplay();
+        switchPage(currentPage, false);
+    }
+}
+
+void checkDailyAlarms(const DateTimeInfo& dt) {
+    if (dt.minute == lastDailyAlarmMinute) return;
+    lastDailyAlarmMinute = dt.minute;
+
+    const DailyAlarm* alarms = settingsMgr.get().alarms;
+    for (uint8_t i = 0; i < MAX_DAILY_ALARMS; i++) {
+        if (alarms[i].enabled &&
+            isAlarmActiveOnDay(alarms[i].days, dt.dayOfWeek) &&
+            alarms[i].hour == dt.hour &&
+            alarms[i].minute == dt.minute) {
+            triggerDailyAlarm(alarms[i], dt);
+            break;
+        }
+    }
+}
 
 void switchPage(uint8_t newPage, bool fullRedraw) {
     uint8_t prevPage = currentPage;
@@ -56,12 +136,14 @@ void switchPage(uint8_t newPage, bool fullRedraw) {
     bool hasDt = getCurrentDateTime(dt);
     if (hasDt) {
         ui.updateDate(dt);
-        if (currentPage != 4) {
+        if (currentPage != 4 && currentPage != 5) {
             ui.updateTime(dt);
         }
     }
 
-    if (currentPage == 4) {
+    if (currentPage == 5) {
+        ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField, true);
+    } else if (currentPage == 4) {
         ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
     } else {
         if (weatherData.valid) {
@@ -90,7 +172,7 @@ static WebServerCallbacks buildServerCallbacks() {
     WebServerCallbacks cb;
 
     cb.onPageChange = [](uint8_t page) {
-        if (page >= 1 && page <= 4) {
+        if (page >= 1 && page <= TOTAL_PAGES && settingsMgr.get().isPageEnabled(page)) {
             switchPage(page, false);
         }
     };
@@ -99,8 +181,14 @@ static WebServerCallbacks buildServerCallbacks() {
         if (ui.isSleeping()) {
             manualSleepActive = false;
             nightAutoSleepActive = false;
+            DateTimeInfo dt;
+            if (getCurrentDateTime(dt)) {
+                if (currentPage != 4 && currentPage != 5) {
+                    ui.updateTime(dt);
+                }
+                ui.updateDate(dt);
+            }
             ui.wakeDisplay();
-            switchPage(currentPage, true);
         } else {
             manualSleepActive = true;
             nightAutoSleepActive = false;
@@ -166,11 +254,15 @@ static WebServerCallbacks buildServerCallbacks() {
     };
 
     cb.onStopAlarm = []() {
-        buzzer.stop();
+        if (dailyAlarmActive) {
+            stopDailyAlarm();
+        } else {
+            buzzer.stop();
+        }
     };
 
     cb.isAlarming = []() -> bool {
-        return buzzer.isAlarming();
+        return buzzer.isAlarming() || dailyAlarmActive;
     };
 
     cb.getCurrentMelody = []() -> uint8_t {
@@ -196,12 +288,65 @@ static WebServerCallbacks buildServerCallbacks() {
         }
     };
 
-    cb.onSaveConfig = [](const char* ssid, const char* pass, const char* loc, const char* lat, const char* lon, uint8_t melody, uint8_t page) -> bool {
+    cb.onSaveConfig = [](const char* ssid, const char* pass, const char* loc, const char* lat, const char* lon,
+                         uint8_t melody, uint8_t page,
+                         bool p1, bool p2, bool p3, bool p4, bool p5) -> bool {
         settingsMgr.setWifi(ssid, pass);
         settingsMgr.setLocation(loc, lat, lon);
         settingsMgr.setAlarmMelody(melody);
         settingsMgr.setDefaultPage(page);
+        settingsMgr.setPageEnabled(1, p1);
+        settingsMgr.setPageEnabled(2, p2);
+        settingsMgr.setPageEnabled(3, p3);
+        settingsMgr.setPageEnabled(4, p4);
+        settingsMgr.setPageEnabled(5, p5);
         return settingsMgr.save();
+    };
+
+    cb.onGetAlarms = [](DailyAlarm* outAlarms, uint8_t& count) {
+        count = MAX_DAILY_ALARMS;
+        if (outAlarms) {
+            memcpy(outAlarms, settingsMgr.get().alarms, sizeof(DailyAlarm) * MAX_DAILY_ALARMS);
+        }
+    };
+
+    cb.onSetAlarm = [](uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, const char* label) -> bool {
+        if (id < 1 || id > MAX_DAILY_ALARMS) return false;
+        DailyAlarm a;
+        a.id = id;
+        a.enabled = enabled;
+        a.hour = hour;
+        a.minute = minute;
+        a.days = days;
+        strncpy(a.label, label ? label : "", ALARM_LABEL_MAX_LEN);
+        a.label[ALARM_LABEL_MAX_LEN] = '\0';
+        bool ok = settingsMgr.setAlarm(id - 1, a);
+        if (ok) {
+            settingsMgr.save();
+            if (currentPage == 5) {
+                ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+            }
+        }
+        return ok;
+    };
+
+    cb.onToggleAlarm = [](uint8_t id) -> bool {
+        if (id < 1 || id > MAX_DAILY_ALARMS) return false;
+        bool newState = settingsMgr.toggleAlarm(id - 1);
+        settingsMgr.save();
+        if (currentPage == 5) {
+            ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+        }
+        return newState;
+    };
+
+    cb.onSetPageEnabled = [](uint8_t page, bool enabled) {
+        settingsMgr.setPageEnabled(page, enabled);
+        settingsMgr.save();
+    };
+
+    cb.isPageEnabled = [](uint8_t page) -> bool {
+        return settingsMgr.get().isPageEnabled(page);
     };
 
     return cb;
@@ -210,8 +355,8 @@ static WebServerCallbacks buildServerCallbacks() {
 void handleNightMode(const DateTimeInfo& dt) {
     if (!NIGHT_MODE_ENABLED) return;
 
-    // Si el timer está corriendo o la alarma suena, no apagar
-    if (timerState == TIMER_UI_RUNNING || timerState == TIMER_UI_ALARM) return;
+    // Si el timer está corriendo o alguna alarma suena, no apagar pantalla
+    if (timerState == TIMER_UI_RUNNING || timerState == TIMER_UI_ALARM || dailyAlarmActive) return;
 
     bool isNight;
     if (NIGHT_MODE_START_HOUR > NIGHT_MODE_END_HOUR) {
@@ -240,8 +385,14 @@ void handleNightMode(const DateTimeInfo& dt) {
         if (nightAutoSleepActive && ui.isSleeping()) {
             nightAutoSleepActive = false;
             manualSleepActive = false;
+            DateTimeInfo dtNow;
+            if (getCurrentDateTime(dtNow)) {
+                if (currentPage != 4 && currentPage != 5) {
+                    ui.updateTime(dtNow);
+                }
+                ui.updateDate(dtNow);
+            }
             ui.wakeDisplay();
-            switchPage(currentPage, true);
         }
     }
 }
@@ -309,6 +460,9 @@ void setup() {
     // 2. Inicializar sistema de almacenamiento y configuraciones persistentes
     settingsMgr.begin();
     currentPage = settingsMgr.get().defaultPage;
+    if (!settingsMgr.get().isPageEnabled(currentPage)) {
+        currentPage = settingsMgr.get().getFirstEnabledPage();
+    }
     buzzer.setMelodyType(settingsMgr.get().alarmMelody);
 
     // 3. Inicializar botones y buzzer
@@ -401,6 +555,15 @@ void loop() {
     webServer.update();
 
     // ----------------------------------------------------
+    // GESTIÓN DE ALARMA DESPERTADOR (Auto-off por duración)
+    // ----------------------------------------------------
+    if (dailyAlarmActive) {
+        if (now - dailyAlarmStartTime >= ALARM_MAX_RING_DURATION_MS) {
+            stopDailyAlarm();
+        }
+    }
+
+    // ----------------------------------------------------
     // GESTIÓN DE BOTONES
     // ----------------------------------------------------
     ButtonEvent evPrev = inputCtrl.updatePrev();
@@ -408,6 +571,22 @@ void loop() {
     ButtonEvent evAction = inputCtrl.updateAction();
 
     bool anyButtonActivity = (evPrev != BTN_EVENT_NONE || evNext != BTN_EVENT_NONE || evAction != BTN_EVENT_NONE);
+
+    // Si la alarma del despertador o del temporizador está sonando, cualquier botón la silencia
+    if (anyButtonActivity && (dailyAlarmActive || buzzer.isAlarming())) {
+        if (dailyAlarmActive) {
+            stopDailyAlarm();
+        } else {
+            buzzer.stop();
+            timerState = TIMER_UI_IDLE;
+            timerRemainingSec = timerSelectedSec;
+            timerTotalSec = timerRemainingSec;
+            if (currentPage == 4) {
+                ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
+            }
+        }
+        return;
+    }
 
     // Si la pantalla estaba apagada y se pulsa cualquier botón, despertar
     if (anyButtonActivity && ui.isSleeping()) {
@@ -428,41 +607,66 @@ void loop() {
                     manualWakeActive = true;
                     manualWakeTime = now;
                 }
+                if (currentPage != 4 && currentPage != 5) {
+                    ui.updateTime(dt);
+                }
+                ui.updateDate(dt);
             }
 
             ui.wakeDisplay();
-            switchPage(currentPage, true);
             if (BUZZER_KEY_BEEP) buzzer.beep(30);
         }
         return;
     }
 
-    // Si la alarma del buzzer está sonando, cualquier botón la silencia
-    if (anyButtonActivity && buzzer.isAlarming()) {
-        buzzer.stop();
-        timerState = TIMER_UI_IDLE;
-        timerRemainingSec = timerSelectedSec;
-        timerTotalSec = timerRemainingSec;
-        if (currentPage == 4) {
-            ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
-        }
-        return;
-    }
-
-    // Botón Siguiente (Avanzar página 1 -> 2 -> 3 -> 4 -> 1)
+    // Botón Siguiente (Next)
     if (evNext == BTN_EVENT_SHORT_CLICK) {
-        Serial.println(F("[BTN] Siguiente (Next)"));
-        if (BUZZER_KEY_BEEP) buzzer.beep(25);
-        uint8_t nextPage = (currentPage >= 4) ? 1 : (currentPage + 1);
-        switchPage(nextPage, false);
+        if (currentPage == 5 && alarmEditMode) {
+            DailyAlarm& a = settingsMgr.get().alarms[selectedAlarmIndex];
+            if (alarmEditField == ALARM_FIELD_ENABLE) {
+                a.enabled = !a.enabled;
+            } else if (alarmEditField == ALARM_FIELD_HOUR) {
+                a.hour = (a.hour >= 23) ? 0 : (a.hour + 1);
+            } else if (alarmEditField == ALARM_FIELD_MINUTE) {
+                a.minute = (a.minute >= 55) ? 0 : (a.minute + 5);
+            } else if (alarmEditField == ALARM_FIELD_DAYS) {
+                if (a.days == ALARM_DAYS_ALL) a.days = ALARM_DAYS_WEEKDAYS;
+                else if (a.days == ALARM_DAYS_WEEKDAYS) a.days = ALARM_DAYS_WEEKEND;
+                else a.days = ALARM_DAYS_ALL;
+            }
+            if (BUZZER_KEY_BEEP) buzzer.beep(25);
+            ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+        } else {
+            Serial.println(F("[BTN] Siguiente (Next)"));
+            if (BUZZER_KEY_BEEP) buzzer.beep(25);
+            uint8_t nextPage = settingsMgr.get().getNextEnabledPage(currentPage);
+            switchPage(nextPage, false);
+        }
     }
 
-    // Botón Anterior (Retroceder página 1 -> 4 -> 3 -> 2 -> 1)
+    // Botón Anterior (Prev)
     if (evPrev == BTN_EVENT_SHORT_CLICK) {
-        Serial.println(F("[BTN] Anterior (Prev)"));
-        if (BUZZER_KEY_BEEP) buzzer.beep(25);
-        uint8_t prevPage = (currentPage <= 1) ? 4 : (currentPage - 1);
-        switchPage(prevPage, false);
+        if (currentPage == 5 && alarmEditMode) {
+            DailyAlarm& a = settingsMgr.get().alarms[selectedAlarmIndex];
+            if (alarmEditField == ALARM_FIELD_ENABLE) {
+                a.enabled = !a.enabled;
+            } else if (alarmEditField == ALARM_FIELD_HOUR) {
+                a.hour = (a.hour == 0) ? 23 : (a.hour - 1);
+            } else if (alarmEditField == ALARM_FIELD_MINUTE) {
+                a.minute = (a.minute == 0) ? 55 : (a.minute - 5);
+            } else if (alarmEditField == ALARM_FIELD_DAYS) {
+                if (a.days == ALARM_DAYS_ALL) a.days = ALARM_DAYS_WEEKEND;
+                else if (a.days == ALARM_DAYS_WEEKEND) a.days = ALARM_DAYS_WEEKDAYS;
+                else a.days = ALARM_DAYS_ALL;
+            }
+            if (BUZZER_KEY_BEEP) buzzer.beep(25);
+            ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+        } else {
+            Serial.println(F("[BTN] Anterior (Prev)"));
+            if (BUZZER_KEY_BEEP) buzzer.beep(25);
+            uint8_t prevPage = settingsMgr.get().getPrevEnabledPage(currentPage);
+            switchPage(prevPage, false);
+        }
     }
 
     // Botón Acción
@@ -506,6 +710,35 @@ void loop() {
                     timerTotalSec = timerRemainingSec;
                     if (BUZZER_KEY_BEEP) buzzer.beep(60);
                     ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
+                }
+            }
+        } else if (currentPage == 5) {
+            // En página 5: Despertador / Alarmas Diarias
+            if (!alarmEditMode) {
+                if (evAction == BTN_EVENT_SHORT_CLICK) {
+                    selectedAlarmIndex = (selectedAlarmIndex + 1) % MAX_DAILY_ALARMS;
+                    if (BUZZER_KEY_BEEP) buzzer.beep(25);
+                    ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+                } else if (evAction == BTN_EVENT_LONG_PRESS) {
+                    alarmEditMode = true;
+                    alarmEditField = ALARM_FIELD_ENABLE;
+                    if (BUZZER_KEY_BEEP) buzzer.beep(80);
+                    ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+                }
+            } else {
+                if (evAction == BTN_EVENT_SHORT_CLICK) {
+                    if (alarmEditField == ALARM_FIELD_ENABLE) alarmEditField = ALARM_FIELD_HOUR;
+                    else if (alarmEditField == ALARM_FIELD_HOUR) alarmEditField = ALARM_FIELD_MINUTE;
+                    else if (alarmEditField == ALARM_FIELD_MINUTE) alarmEditField = ALARM_FIELD_DAYS;
+                    else alarmEditField = ALARM_FIELD_ENABLE;
+                    if (BUZZER_KEY_BEEP) buzzer.beep(30);
+                    ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
+                } else if (evAction == BTN_EVENT_LONG_PRESS) {
+                    alarmEditMode = false;
+                    alarmEditField = ALARM_FIELD_NONE;
+                    settingsMgr.save();
+                    if (BUZZER_KEY_BEEP) buzzer.beep(120);
+                    ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
                 }
             }
         }
@@ -557,19 +790,20 @@ void loop() {
     // ----------------------------------------------------
     // TAREAS PERIÓDICAS (Reloj, Modo Noche, Wi-Fi, Clima)
     // ----------------------------------------------------
-    // 1. Refresco de reloj y comprobación de modo noche (cada 1 segundo)
+    // 1. Refresco de reloj, alarmas diarias y comprobación de modo noche (cada 1 segundo)
     if (now - lastClockTick >= CLOCK_REFRESH_INTERVAL_MS) {
         lastClockTick = now;
 
         DateTimeInfo dt;
         if (getCurrentDateTime(dt)) {
-            if (!ui.isSleeping()) {
-                if (currentPage != 4) {
+            checkDailyAlarms(dt);
+            handleNightMode(dt);
+            if (!ui.isSleeping() && !dailyAlarmActive) {
+                if (currentPage != 4 && currentPage != 5) {
                     ui.updateTime(dt);
                 }
                 ui.updateDate(dt);
             }
-            handleNightMode(dt);
         }
     }
 

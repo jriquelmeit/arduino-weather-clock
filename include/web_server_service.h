@@ -37,7 +37,16 @@ struct WebServerCallbacks {
     std::function<void(char* timeBuf, size_t timeLen, float& temp, int& hum, char* condBuf, size_t condLen)> getWeatherInfo;
 
     // Guardado de configuración
-    std::function<bool(const char* ssid, const char* pass, const char* loc, const char* lat, const char* lon, uint8_t melody, uint8_t page)> onSaveConfig;
+    std::function<bool(const char* ssid, const char* pass, const char* loc, const char* lat, const char* lon,
+                       uint8_t melody, uint8_t page,
+                       bool p1, bool p2, bool p3, bool p4, bool p5)> onSaveConfig;
+
+    // Despertador y páginas
+    std::function<void(DailyAlarm* outAlarms, uint8_t& count)> onGetAlarms;
+    std::function<bool(uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, const char* label)> onSetAlarm;
+    std::function<bool(uint8_t id)> onToggleAlarm;
+    std::function<void(uint8_t page, bool enabled)> onSetPageEnabled;
+    std::function<bool(uint8_t page)> isPageEnabled;
 };
 
 class WebServerService {
@@ -75,6 +84,8 @@ private:
     void handleApiSleep();
     void handleApiTimer();
     void handleApiAlarm();
+    void handleApiAlarms();
+    void handleApiPages();
 
     // Portal cautivo
     bool isCaptivePortalRequest();

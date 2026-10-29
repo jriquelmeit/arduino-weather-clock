@@ -61,7 +61,16 @@
 // 2: Página 2               - Reloj + Clima actual + Pronóstico próximas horas
 // 3: Página 3               - Dashboard Central: Reloj Gigante + Santoral + UV
 // 4: Página 4               - Temporizador / Timer
+// 5: Página 5               - Despertador / Alarmas diarias
 #define DISPLAY_PAGE_MODE            1
+#define TOTAL_PAGES                  5
+
+// Habilitación de páginas individuales (true: activa en navegación | false: omitida)
+#define ENABLED_PAGE_1               true
+#define ENABLED_PAGE_2               true
+#define ENABLED_PAGE_3               true
+#define ENABLED_PAGE_4               true
+#define ENABLED_PAGE_5               true
 
 // Para Página 2 (Pronóstico por horas): intervalo de horas entre predicciones
 // 1 = cada 1 hora (+1h, +2h, +3h, +4h)
@@ -82,7 +91,13 @@
 #define ALARM_MELODY_TYPE            1     // 1: Star Wars (Marcha Imperial) | 2: Super Mario Bros (Overworld)
 
 // ==========================================
-// CONFIGURACIÓN DEL TEMPORIZADOR (PÁGINA 3)
+// DESPERTADOR / ALARMAS DIARIAS (PÁGINA 5)
+// ==========================================
+#define MAX_DAILY_ALARMS             10
+#define ALARM_MAX_RING_DURATION_MS   60000UL // Duración máxima alarma si no se silencia (60s)
+
+// ==========================================
+// CONFIGURACIÓN DEL TEMPORIZADOR (PÁGINA 4)
 // ==========================================
 #define TIMER_DEFAULT_MINUTES        5
 #define TIMER_MIN_MINUTES            5

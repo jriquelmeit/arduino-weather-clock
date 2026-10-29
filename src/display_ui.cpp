@@ -13,7 +13,11 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
       _lastRssi(-999),
       _lastWifiState(false),
       _isSleeping(false),
-      _pageMode(1) {
+      _pageMode(1),
+      _lastAlarmSelected(-1),
+      _lastAlarmEditMode(false),
+      _lastAlarmEditField(ALARM_FIELD_NONE),
+      _lastAlarmTopIndex(255) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
     _lastStatusBarMsg[0] = '\0';
@@ -168,7 +172,16 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
         _tft.fillRect(0, 27, 320, 197, ILI9341_BLACK);
     }
 
-    if (pageMode == 4) {
+    if (pageMode == 5) {
+        // Página 5: Tarjeta grande para Despertador / Alarmas Diarias
+        _tft.drawRoundRect(4, 30, 312, 190, 8, ILI9341_DARKCYAN);
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(14, 36);
+        _tft.print("DESPERTADOR / ALARMAS DIARIAS");
+        _lastAlarmSelected = -1;
+        _lastAlarmTopIndex = 255;
+    } else if (pageMode == 4) {
         // Página 4: Tarjeta grande central para Temporizador
         _tft.drawRoundRect(4, 30, 312, 190, 8, ILI9341_DARKCYAN);
         _tft.setTextSize(1);
@@ -936,23 +949,192 @@ void DisplayUI::updateTimer(uint32_t remainingSec, uint32_t totalSec, TimerDispl
     }
 }
 
+void DisplayUI::updateAlarmUI(const DailyAlarm* alarms, uint8_t count, uint8_t selectedIndex,
+                              bool editMode, AlarmEditField editField, bool forceRedraw) {
+    if (!alarms || count == 0) return;
+    if (selectedIndex >= count) selectedIndex = 0;
+
+    uint8_t topIndex = 0;
+    if (count <= 4) {
+        topIndex = 0;
+    } else if (selectedIndex >= count - 2) {
+        topIndex = count - 4;
+    } else if (selectedIndex >= 2) {
+        topIndex = selectedIndex - 1;
+    }
+
+    _lastAlarmTopIndex = topIndex;
+    _lastAlarmEditMode = editMode;
+    _lastAlarmEditField = editField;
+    _lastAlarmSelected = selectedIndex;
+
+    char daysStr[24];
+    char timeBuf[8];
+    char idBuf[8];
+
+    for (uint8_t r = 0; r < 4; r++) {
+        uint8_t aIdx = topIndex + r;
+        if (aIdx >= count) break;
+
+        int rowY = 48 + (r * 30);
+        bool isSelected = (aIdx == selectedIndex);
+
+        // Fondo y recuadro de la fila
+        if (isSelected) {
+            uint16_t borderColor = editMode ? ILI9341_YELLOW : ILI9341_CYAN;
+            uint16_t rowBg = editMode ? 0x18C3 : 0x0926;
+            _tft.fillRoundRect(8, rowY, 304, 28, 4, rowBg);
+            _tft.drawRoundRect(8, rowY, 304, 28, 4, borderColor);
+        } else {
+            _tft.fillRoundRect(8, rowY, 304, 28, 4, ILI9341_BLACK);
+            _tft.drawRoundRect(8, rowY, 304, 28, 4, COLOR_BORDER_CARD);
+        }
+
+        const DailyAlarm& alarm = alarms[aIdx];
+
+        // 1. Identificador de alarma: [1] a [10]
+        snprintf(idBuf, sizeof(idBuf), "[%u]", alarm.id);
+        _tft.setTextSize(1);
+        _tft.setTextColor(isSelected ? ILI9341_YELLOW : ILI9341_DARKGREY);
+        _tft.setCursor(14, rowY + 9);
+        _tft.print(idBuf);
+
+        // 2. Hora: HH:MM
+        if (isSelected && editMode) {
+            char hBuf[4], mBuf[4];
+            snprintf(hBuf, sizeof(hBuf), "%02u", alarm.hour);
+            snprintf(mBuf, sizeof(mBuf), "%02u", alarm.minute);
+
+            _tft.setTextSize(2);
+            _tft.setTextColor(editField == ALARM_FIELD_HOUR ? ILI9341_YELLOW : ILI9341_WHITE);
+            _tft.setCursor(42, rowY + 6);
+            _tft.print(hBuf);
+
+            _tft.setTextColor(ILI9341_WHITE);
+            _tft.print(":");
+
+            _tft.setTextColor(editField == ALARM_FIELD_MINUTE ? ILI9341_YELLOW : ILI9341_WHITE);
+            _tft.print(mBuf);
+        } else {
+            snprintf(timeBuf, sizeof(timeBuf), "%02u:%02u", alarm.hour, alarm.minute);
+            _tft.setTextSize(2);
+            uint16_t timeColor = alarm.enabled ? (isSelected ? ILI9341_WHITE : ILI9341_GREEN) : COLOR_TEXT_MUTED;
+            _tft.setTextColor(timeColor);
+            _tft.setCursor(42, rowY + 6);
+            _tft.print(timeBuf);
+        }
+
+        // 3. Días
+        formatAlarmDaysString(alarm.days, daysStr, sizeof(daysStr));
+        _tft.setTextSize(1);
+        uint16_t daysColor;
+        if (isSelected && editMode && editField == ALARM_FIELD_DAYS) {
+            daysColor = ILI9341_YELLOW;
+        } else {
+            daysColor = alarm.enabled ? ILI9341_CYAN : COLOR_TEXT_MUTED;
+        }
+        _tft.setTextColor(daysColor);
+        _tft.setCursor(114, rowY + 10);
+        _tft.print(daysStr);
+
+        // 4. Estado [ ON ] / [ OFF ]
+        _tft.setTextSize(1);
+        _tft.setCursor(248, rowY + 10);
+        if (isSelected && editMode && editField == ALARM_FIELD_ENABLE) {
+            _tft.setTextColor(ILI9341_YELLOW);
+            _tft.print(alarm.enabled ? ">[ON ]" : ">[OFF]");
+        } else if (alarm.enabled) {
+            _tft.setTextColor(ILI9341_GREEN);
+            _tft.print("[ ON ]");
+        } else {
+            _tft.setTextColor(ILI9341_RED);
+            _tft.print("[ OFF]");
+        }
+    }
+
+    // Pie de página de instrucciones (Y: 172..218)
+    _tft.drawFastHLine(8, 172, 304, COLOR_BORDER_CARD);
+    _tft.fillRect(8, 174, 304, 44, ILI9341_BLACK);
+
+    if (!editMode) {
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+        _tft.setCursor(12, 176);
+        _tft.print("Btn 1/2: Pagina  |  Btn 3: Elegir alarma");
+
+        _tft.setTextColor(ILI9341_CYAN, ILI9341_BLACK);
+        _tft.setCursor(12, 190);
+        _tft.print("Mantener Btn 3: Editar alarma seleccionada");
+
+        _tft.setTextColor(COLOR_TEXT_MUTED, ILI9341_BLACK);
+        _tft.setCursor(12, 204);
+        char posBuf[32];
+        snprintf(posBuf, sizeof(posBuf), "Alarma %u de %u", selectedIndex + 1, count);
+        _tft.print(posBuf);
+    } else {
+        _tft.setTextSize(1);
+        _tft.setTextColor(ILI9341_YELLOW, ILI9341_BLACK);
+        _tft.setCursor(12, 176);
+        if (editField == ALARM_FIELD_ENABLE) {
+            _tft.print("MODO EDICION: [ ACTIVAR / DESACTIVAR ]");
+        } else if (editField == ALARM_FIELD_HOUR) {
+            _tft.print("MODO EDICION: [ HORA ]");
+        } else if (editField == ALARM_FIELD_MINUTE) {
+            _tft.print("MODO EDICION: [ MINUTO ]");
+        } else if (editField == ALARM_FIELD_DAYS) {
+            _tft.print("MODO EDICION: [ DIAS (Presets) ]");
+        }
+
+        _tft.setTextColor(ILI9341_WHITE, ILI9341_BLACK);
+        _tft.setCursor(12, 190);
+        _tft.print("Btn 1/2: Ajustar  |  Btn 3 corto: Siguiente");
+
+        _tft.setTextColor(ILI9341_GREEN, ILI9341_BLACK);
+        _tft.setCursor(12, 204);
+        _tft.print("Mantener Btn 3: Guardar y salir");
+    }
+}
+
+void DisplayUI::showAlarmAlert(const char* timeStr, const char* label) {
+    uint16_t boxColor = ILI9341_MAROON;
+    uint16_t textColor = ILI9341_YELLOW;
+
+    _tft.fillRect(16, 40, 288, 150, boxColor);
+    _tft.drawRect(14, 38, 292, 154, ILI9341_WHITE);
+    _tft.drawRect(15, 39, 290, 152, ILI9341_WHITE);
+
+    _tft.setTextSize(2);
+    _tft.setTextColor(textColor, boxColor);
+    _tft.setCursor(45, 52);
+    _tft.print("! DESPERTADOR !");
+
+    _tft.setTextSize(4);
+    _tft.setTextColor(ILI9341_WHITE, boxColor);
+    _tft.setCursor(95, 80);
+    _tft.print(timeStr ? timeStr : "--:--");
+
+    _tft.setTextSize(1);
+    _tft.setTextColor(ILI9341_YELLOW, boxColor);
+    _tft.setCursor(30, 126);
+    _tft.print(label && strlen(label) > 0 ? label : "Alarma Programada");
+
+    _tft.setTextColor(ILI9341_WHITE, boxColor);
+    _tft.setCursor(24, 156);
+    _tft.print("Pulsa CUALQUIER boton para silenciar");
+}
+
 void DisplayUI::sleepDisplay() {
     if (_isSleeping) return;
     if (_ledPin >= 0) {
-        digitalWrite(_ledPin, LOW); // Cortar backlight con transistor
+        digitalWrite(_ledPin, LOW); // Cortar retroiluminación con transistor en pin RX (GPIO3)
     }
-    _tft.sendCommand(ILI9341_DISPOFF);
-    _tft.sendCommand(ILI9341_SLPIN);
     _isSleeping = true;
 }
 
 void DisplayUI::wakeDisplay() {
     if (!_isSleeping) return;
-    _tft.sendCommand(ILI9341_SLPOUT);
-    delay(120);
-    _tft.sendCommand(ILI9341_DISPON);
     if (_ledPin >= 0) {
-        digitalWrite(_ledPin, HIGH); // Encender backlight con transistor
+        digitalWrite(_ledPin, HIGH); // Encender retroiluminación con transistor en pin RX (GPIO3)
     }
     _isSleeping = false;
 }

@@ -6,11 +6,20 @@
 #include <Adafruit_ILI9341.h>
 #include "time_service.h"
 #include "weather_service.h"
+#include "settings_manager.h"
 
 enum TimerDisplayState {
     TIMER_UI_IDLE = 0,
     TIMER_UI_RUNNING,
     TIMER_UI_ALARM
+};
+
+enum AlarmEditField {
+    ALARM_FIELD_NONE = 0,
+    ALARM_FIELD_ENABLE,
+    ALARM_FIELD_HOUR,
+    ALARM_FIELD_MINUTE,
+    ALARM_FIELD_DAYS
 };
 
 class DisplayUI {
@@ -31,6 +40,9 @@ public:
     void updateDate(const DateTimeInfo& timeInfo);
     void updateWeather(const WeatherData& weather, uint8_t pageMode = 1);
     void updateTimer(uint32_t remainingSec, uint32_t totalSec, TimerDisplayState state, bool forceRedraw = false);
+    void updateAlarmUI(const DailyAlarm* alarms, uint8_t count, uint8_t selectedIndex,
+                       bool editMode, AlarmEditField editField, bool forceRedraw = false);
+    void showAlarmAlert(const char* timeStr, const char* label);
     void updateWifiStatus(bool connected, int rssi, const IPAddress& ip);
     void updateStatusBar(const char* message);
 
@@ -54,6 +66,12 @@ private:
     bool _lastWifiState;
     bool _isSleeping;
     uint8_t _pageMode;
+
+    // Estado interno para la UI de Alarmas (Página 5)
+    int8_t _lastAlarmSelected;
+    bool _lastAlarmEditMode;
+    AlarmEditField _lastAlarmEditField;
+    uint8_t _lastAlarmTopIndex;
 
     void drawDailyForecast(const WeatherData& weather);
     void drawHourlyForecast(const WeatherData& weather);
