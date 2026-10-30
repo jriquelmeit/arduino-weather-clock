@@ -43,7 +43,7 @@ struct WebServerCallbacks {
 
     // Despertador y páginas
     std::function<void(DailyAlarm* outAlarms, uint8_t& count)> onGetAlarms;
-    std::function<bool(uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, const char* label)> onSetAlarm;
+    std::function<bool(uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, uint8_t melody, const char* label)> onSetAlarm;
     std::function<bool(uint8_t id)> onToggleAlarm;
     std::function<void(uint8_t page, bool enabled)> onSetPageEnabled;
     std::function<bool(uint8_t page)> isPageEnabled;

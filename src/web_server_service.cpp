@@ -307,6 +307,25 @@ body{background:var(--bg);color:var(--text);display:flex;justify-content:center;
         <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Etiqueta / Nombre</label>
         <input type="text" id="edit_alarm_label" maxlength="16" placeholder="Ej: Trabajo" style="width:100%;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.9rem">
       </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Melodía para esta Alarma</label>
+        <select id="edit_alarm_melody" class="form-select" style="margin-bottom:0">
+          <option value="0">Predeterminada del sistema</option>
+          <option value="1">Star Wars (Marcha Imperial)</option>
+          <option value="2">Super Mario Bros (Overworld)</option>
+          <option value="3">The Legend of Zelda (Main Theme)</option>
+          <option value="4">Tetris (Korobeiniki)</option>
+          <option value="5">Pac-Man (Intro Arcade)</option>
+          <option value="6">Nokia Tune (Gran Vals)</option>
+          <option value="7">Star Wars: Cantina Band</option>
+          <option value="8">Doom (E1M1 At Doom's Gate)</option>
+          <option value="9">Alarma Digital (Casio Beep)</option>
+          <option value="10">Volver al Futuro (Back to the Future)</option>
+          <option value="11">Los Simpson (The Simpsons Theme)</option>
+          <option value="12">Sonic the Hedgehog (Green Hill Zone)</option>
+          <option value="13">Alien (Tema Principal - Jerry Goldsmith)</option>
+        </select>
+      </div>
       <div style="margin-bottom:10px">
         <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px">Días de repetición</label>
         <div style="display:flex;gap:4px;margin-bottom:8px">
@@ -499,6 +518,22 @@ function updateStatus() {
 }
 
 let cachedAlarms = [];
+const melodyNames = [
+  "Predeterminada",
+  "Star Wars (Marcha)",
+  "Super Mario Bros",
+  "Zelda (Theme)",
+  "Tetris",
+  "Pac-Man",
+  "Nokia Tune",
+  "Cantina Band",
+  "Doom (E1M1)",
+  "Casio Beep",
+  "Volver al Futuro",
+  "Los Simpson",
+  "Sonic",
+  "Alien"
+];
 
 function loadAlarms() {
   fetch('/api/alarms')
@@ -538,8 +573,13 @@ function renderAlarmsList() {
     const labelEl = document.createElement('span');
     labelEl.style = 'color:var(--text-muted)';
     labelEl.textContent = a.label || '';
+    const melEl = document.createElement('span');
+    melEl.style = 'color:var(--text-muted);font-size:0.7rem';
+    melEl.textContent = '🎵 ' + (melodyNames[a.melody || 0] || 'Predeterminada');
+
     info.appendChild(daysEl);
     if (a.label) info.appendChild(labelEl);
+    info.appendChild(melEl);
 
     left.appendChild(idBadge);
     left.appendChild(timeEl);
@@ -583,6 +623,7 @@ function openAlarmEditor(id) {
   document.getElementById('edit_alarm_hour').value = alarm.hour;
   document.getElementById('edit_alarm_min').value = alarm.minute;
   document.getElementById('edit_alarm_label').value = alarm.label || '';
+  document.getElementById('edit_alarm_melody').value = alarm.melody || 0;
   document.getElementById('editor_title').textContent = 'Editar Alarma [' + alarm.id + ']';
 
   for (let i = 0; i < 7; i++) {
@@ -613,6 +654,7 @@ function saveAlarmFromEditor() {
   const h = document.getElementById('edit_alarm_hour').value;
   const m = document.getElementById('edit_alarm_min').value;
   const lbl = encodeURIComponent(document.getElementById('edit_alarm_label').value);
+  const mel = document.getElementById('edit_alarm_melody').value;
 
   let daysMask = 0;
   for (let i = 0; i < 7; i++) {
@@ -623,7 +665,7 @@ function saveAlarmFromEditor() {
   const existing = cachedAlarms.find(a => a.id == id);
   const en = existing ? (existing.enabled ? 1 : 0) : 1;
 
-  fetch('/api/alarms?action=set&id=' + id + '&enabled=' + en + '&hour=' + h + '&minute=' + m + '&days=' + daysMask + '&label=' + lbl, { method: 'POST' })
+  fetch('/api/alarms?action=set&id=' + id + '&enabled=' + en + '&hour=' + h + '&minute=' + m + '&days=' + daysMask + '&melody=' + mel + '&label=' + lbl, { method: 'POST' })
     .then(r => r.json())
     .then(() => {
       closeAlarmEditor();
@@ -1061,6 +1103,7 @@ void WebServerService::handleApiAlarms() {
             a["hour"] = alarms[i].hour;
             a["minute"] = alarms[i].minute;
             a["days"] = alarms[i].days;
+            a["melody"] = alarms[i].melody;
             char dStr[24];
             formatAlarmDaysString(alarms[i].days, dStr, sizeof(dStr));
             a["days_str"] = dStr;
@@ -1107,10 +1150,12 @@ void WebServerService::handleApiAlarms() {
                 if (m < 0) { m = 0; }
                 if (m > 59) { m = 59; }
                 if (d < 0 || d > 127) d = ALARM_DAYS_ALL;
+                int mel = _server.hasArg("melody") ? _server.arg("melody").toInt() : 0;
+                if (mel < 0 || mel > MELODY_MAX_TYPE) mel = 0;
 
                 bool ok = false;
                 if (_cb.onSetAlarm) {
-                    ok = _cb.onSetAlarm(id, en, (uint8_t)h, (uint8_t)m, (uint8_t)d, lbl.c_str());
+                    ok = _cb.onSetAlarm(id, en, (uint8_t)h, (uint8_t)m, (uint8_t)d, (uint8_t)mel, lbl.c_str());
                 } else {
                     DailyAlarm a;
                     a.id = id;
@@ -1118,6 +1163,7 @@ void WebServerService::handleApiAlarms() {
                     a.hour = (uint8_t)h;
                     a.minute = (uint8_t)m;
                     a.days = (uint8_t)d;
+                    a.melody = (uint8_t)mel;
                     strncpy(a.label, lbl.c_str(), ALARM_LABEL_MAX_LEN);
                     a.label[ALARM_LABEL_MAX_LEN] = '\0';
                     ok = _settings.setAlarm(id - 1, a);

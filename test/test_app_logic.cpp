@@ -461,11 +461,12 @@ uint8_t testGetPrevEnabledPage(uint8_t current, const bool* pagesEnabled, uint8_
     return current;
 }
 
-bool validateWebApiAlarm(int id, int hour, int minute, int days) {
+bool validateWebApiAlarm(int id, int hour, int minute, int days, int melody = 0) {
     if (id < 1 || id > 10) return false;
     if (hour < 0 || hour > 23) return false;
     if (minute < 0 || minute > 59) return false;
     if (days < 0 || days > 127) return false;
+    if (melody < 0 || melody > 13) return false;
     return true;
 }
 
@@ -616,9 +617,14 @@ void test_page_enabled_navigation_skipping(void) {
 
 void test_alarm_api_validation(void) {
     // Parámetros válidos
-    TEST_ASSERT_TRUE(validateWebApiAlarm(1, 7, 0, 127));
-    TEST_ASSERT_TRUE(validateWebApiAlarm(10, 23, 59, 62));
-    TEST_ASSERT_TRUE(validateWebApiAlarm(5, 0, 0, 0));
+    TEST_ASSERT_TRUE(validateWebApiAlarm(1, 7, 0, 127, 0));
+    TEST_ASSERT_TRUE(validateWebApiAlarm(1, 7, 0, 127, 2)); // Super Mario
+    TEST_ASSERT_TRUE(validateWebApiAlarm(10, 23, 59, 62, 13)); // Alien
+    TEST_ASSERT_TRUE(validateWebApiAlarm(5, 0, 0, 0, 1));
+
+    // Melodía inválida (<0 o >13)
+    TEST_ASSERT_FALSE(validateWebApiAlarm(1, 7, 0, 127, -1));
+    TEST_ASSERT_FALSE(validateWebApiAlarm(1, 7, 0, 127, 14));
 
     // ID inválido (0 o 11)
     TEST_ASSERT_FALSE(validateWebApiAlarm(0, 7, 0, 127));

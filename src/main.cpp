@@ -71,7 +71,14 @@ void triggerDailyAlarm(const DailyAlarm& alarm, const DateTimeInfo& dt) {
     currentAlarmLabel[sizeof(currentAlarmLabel) - 1] = '\0';
     snprintf(currentAlarmTimeStr, sizeof(currentAlarmTimeStr), "%02d:%02d", alarm.hour, alarm.minute);
 
-    Serial.printf("[Alarma] !DESPERTADOR ACTIVADO! Alarma [%u] %s - %s\n", alarm.id, currentAlarmTimeStr, currentAlarmLabel);
+    uint8_t mel = alarm.melody;
+    if (mel < 1 || mel > MELODY_MAX_TYPE) {
+        mel = settingsMgr.get().alarmMelody;
+    }
+    buzzer.setMelodyType(mel);
+
+    Serial.printf("[Alarma] !DESPERTADOR ACTIVADO! Alarma [%u] %s - %s (Melodia: %u)\n",
+                  alarm.id, currentAlarmTimeStr, currentAlarmLabel, mel);
 
     if (ui.isSleeping()) {
         ui.wakeDisplay();
@@ -310,7 +317,7 @@ static WebServerCallbacks buildServerCallbacks() {
         }
     };
 
-    cb.onSetAlarm = [](uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, const char* label) -> bool {
+    cb.onSetAlarm = [](uint8_t id, bool enabled, uint8_t hour, uint8_t minute, uint8_t days, uint8_t melody, const char* label) -> bool {
         if (id < 1 || id > MAX_DAILY_ALARMS) return false;
         DailyAlarm a;
         a.id = id;
@@ -318,6 +325,7 @@ static WebServerCallbacks buildServerCallbacks() {
         a.hour = hour;
         a.minute = minute;
         a.days = days;
+        a.melody = (melody <= MELODY_MAX_TYPE) ? melody : 0;
         strncpy(a.label, label ? label : "", ALARM_LABEL_MAX_LEN);
         a.label[ALARM_LABEL_MAX_LEN] = '\0';
         bool ok = settingsMgr.setAlarm(id - 1, a);

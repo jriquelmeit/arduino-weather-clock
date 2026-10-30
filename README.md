@@ -440,7 +440,7 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 
 #### 6. Gestión del Despertador y Alarmas Diarias
 * **Método:** `GET /api/alarms`
-* **Descripción:** Retorna la lista de las 10 alarmas configuradas.
+* **Descripción:** Retorna la lista de las 10 alarmas configuradas, incluyendo la melodía asignada a cada una.
 * **Respuesta de Ejemplo:**
   ```json
   {
@@ -454,6 +454,7 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
         "minute": 0,
         "days": 62,
         "days_str": "Lun a Vie",
+        "melody": 1,
         "label": "Trabajo"
       },
       {
@@ -463,6 +464,7 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
         "minute": 30,
         "days": 65,
         "days_str": "Fin de semana",
+        "melody": 2,
         "label": "Descanso"
       }
     ]
@@ -471,18 +473,19 @@ Todos los endpoints retornan y aceptan datos estándar en formato JSON o paráme
 * **Método:** `POST /api/alarms`
 * **Parámetros soportados:**
   * **Alternar estado ON/OFF:** `?action=toggle&id={1..10}`
-  * **Modificar alarma:** `?action=set&id={1..10}&enabled={0|1}&hour={0..23}&minute={0..59}&days={0..127}&label={Texto}`
+  * **Modificar alarma:** `?action=set&id={1..10}&enabled={0|1}&hour={0..23}&minute={0..59}&days={0..127}&melody={0..13}&label={Texto}`
     * `days`: Máscara de bits (Bit 0 = Domingo, Bit 1 = Lunes, ..., Bit 6 = Sábado).
       * `127` (0x7F): Todos los días
       * `62` (0x3E): Lunes a Viernes
       * `65` (0x41): Sábado y Domingo
+    * `melody`: `0` para usar la melodía predeterminada del sistema, o `1..13` para asignar una melodía retro específica a esta alarma.
 * **Ejemplos (curl):**
   ```bash
   # Activar o desactivar rápidamente la alarma 1
   curl -X POST "http://192.168.1.50/api/alarms?action=toggle&id=1"
 
-  # Programar la alarma 2 a las 07:15 de Lunes a Viernes
-  curl -X POST "http://192.168.1.50/api/alarms?action=set&id=2&enabled=1&hour=7&minute=15&days=62&label=Gimnasio"
+  # Programar la alarma 2 a las 07:15 de Lunes a Viernes con melodía de Super Mario Bros (2)
+  curl -X POST "http://192.168.1.50/api/alarms?action=set&id=2&enabled=1&hour=7&minute=15&days=62&melody=2&label=Gimnasio"
   ```
 
 ---

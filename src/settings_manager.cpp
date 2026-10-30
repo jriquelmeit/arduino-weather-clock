@@ -8,6 +8,7 @@ void DailyAlarm::setDefaults(uint8_t alarmId) {
     hour = 7;
     minute = 0;
     days = ALARM_DAYS_WEEKDAYS;
+    melody = 0; // 0 = Usar melodía predeterminada del sistema
     snprintf(label, sizeof(label), "Alarma %u", alarmId);
 }
 
@@ -228,6 +229,7 @@ bool SettingsManager::load() {
             _settings.alarms[idx].hour = a["hour"] | 7;
             _settings.alarms[idx].minute = a["minute"] | 0;
             _settings.alarms[idx].days = a["days"] | ALARM_DAYS_WEEKDAYS;
+            _settings.alarms[idx].melody = a["melody"] | 0;
             const char* lbl = a["label"] | "";
             if (strlen(lbl) > 0) {
                 strncpy(_settings.alarms[idx].label, lbl, ALARM_LABEL_MAX_LEN);
@@ -274,6 +276,7 @@ bool SettingsManager::save() {
         a["hour"] = _settings.alarms[i].hour;
         a["minute"] = _settings.alarms[i].minute;
         a["days"] = _settings.alarms[i].days;
+        a["melody"] = _settings.alarms[i].melody;
         a["label"] = _settings.alarms[i].label;
     }
 

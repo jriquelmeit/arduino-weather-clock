@@ -31,6 +31,7 @@ struct DailyAlarm {
     uint8_t hour;       // 0..23
     uint8_t minute;     // 0..59
     uint8_t days;       // bitmask 0..127
+    uint8_t melody;     // 0 = predeterminada, 1..13 = melodia retro
     char label[ALARM_LABEL_MAX_LEN + 1];
 
     void setDefaults(uint8_t alarmId);
