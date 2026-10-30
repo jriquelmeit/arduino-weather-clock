@@ -463,7 +463,7 @@ void setup() {
     Serial.println(F("=============================================="));
 
     // 1. Inicializar pantalla TFT
-    ui.begin(TFT_ROTATION);
+    ui.begin(TFT_ROTATION, TFT_SPI_FREQ);
 
     // 2. Inicializar sistema de almacenamiento y configuraciones persistentes
     settingsMgr.begin();

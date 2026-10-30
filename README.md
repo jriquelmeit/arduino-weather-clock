@@ -552,6 +552,10 @@ Edita `include/config.h` con los datos de tu red y coordenadas geográficas:
 // Regla POSIX de Zona Horaria (cambio automático de horario)
 #define TIMEZONE_RULE   "CLT4CLST,M9.1.0/0,M4.1.0/0"
 
+// Frecuencia del Bus SPI (Hardware HSPI)
+// 80000000L: 80 MHz (Máxima velocidad sin parpadeo) | 40000000L: 40 MHz (Estándar)
+#define TFT_SPI_FREQ           80000000L
+
 // Modo de Pantalla (Página activa)
 // 1: Página 1 - Pronóstico diario a 2 días (Por defecto)
 // 2: Página 2 - Pronóstico por horas (4 bloques)

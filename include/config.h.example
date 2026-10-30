@@ -25,6 +25,7 @@
 #define TFT_DC          D3
 #define TFT_RST         D4
 #define TFT_ROTATION    3   // 3: Horizontal 320x240 (con pines arriba a la izquierda)
+#define TFT_SPI_FREQ    80000000L // 80 MHz (Máxima velocidad SPI en ESP8266)
 
 // Control de retroiluminación por transistor NPN (pin RX del NodeMCU = GPIO3)
 // Si el pin LED de la pantalla está directo a 3V3, puedes dejar 3 o poner -1

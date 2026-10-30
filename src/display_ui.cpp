@@ -25,12 +25,12 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
     _lastTimerStr[0] = '\0';
 }
 
-void DisplayUI::begin(uint8_t rotation) {
+void DisplayUI::begin(uint8_t rotation, uint32_t spiFreq) {
     if (_ledPin >= 0) {
         pinMode(_ledPin, OUTPUT);
         digitalWrite(_ledPin, HIGH); // Encender backlight
     }
-    _tft.begin(40000000); // 40 MHz SPI para máxima fluidez
+    _tft.begin(spiFreq); // Frecuencia del bus SPI por hardware (80 MHz)
     _tft.setRotation(rotation);
     _tft.fillScreen(ILI9341_BLACK);
 }

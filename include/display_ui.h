@@ -26,7 +26,7 @@ class DisplayUI {
 public:
     DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin = -1);
 
-    void begin(uint8_t rotation = 3);
+    void begin(uint8_t rotation = 3, uint32_t spiFreq = 80000000L);
     void showBootScreen(const char* ssid);
     void showConfigPortalScreen(const char* apSsid, const char* apIp);
     void updateBootProgress(const char* stepMsg, uint8_t dots);
