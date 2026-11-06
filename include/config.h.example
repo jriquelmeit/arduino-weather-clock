@@ -9,6 +9,12 @@
 #define WIFI_PASSWORD   "TU_PASSWORD"
 
 // ==========================================
+// NOMBRE DEL DISPOSITIVO / TÍTULO WEB
+// ==========================================
+// Título que se muestra en el panel de control web para identificar este reloj
+#define WEB_PANEL_TITLE "Weather Clock"
+
+// ==========================================
 // PINES DE PANTALLA TFT ILI9341 (SPI)
 // ==========================================
 // Mapeo probado en Lolin NodeMCU V3:
@@ -21,9 +27,15 @@
 //   VCC      -> VIN (5V) o 3V3
 //   LED      -> 3V3 directo, o mediante transistor NPN (2N2222) controlado por pin RX (GPIO3)
 //   GND      -> GND
+#ifndef TFT_CS
 #define TFT_CS          D8
+#endif
+#ifndef TFT_DC
 #define TFT_DC          D3
+#endif
+#ifndef TFT_RST
 #define TFT_RST         D4
+#endif
 #define TFT_ROTATION    3   // 3: Horizontal 320x240 (con pines arriba a la izquierda)
 #define TFT_SPI_FREQ    80000000L // 80 MHz (Máxima velocidad SPI en ESP8266)
 

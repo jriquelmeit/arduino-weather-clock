@@ -5,7 +5,7 @@
 #define COLOR_TEXT_MUTED      0x8410
 
 DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
-    : _tft(cs, dc, rst),
+    : _tft(),
       _ledPin(ledPin),
       _lastTimerState((TimerDisplayState)-1),
       _lastProgressBarWidth(-1),
@@ -30,9 +30,9 @@ void DisplayUI::begin(uint8_t rotation, uint32_t spiFreq) {
         pinMode(_ledPin, OUTPUT);
         digitalWrite(_ledPin, HIGH); // Encender backlight
     }
-    _tft.begin(spiFreq); // Frecuencia del bus SPI por hardware (80 MHz)
+    _tft.begin(); // Inicializar TFT_eSPI (frecuencia configurada en build_flags)
     _tft.setRotation(rotation);
-    _tft.fillScreen(ILI9341_BLACK);
+    _tft.fillScreen(TFT_BLACK);
 }
 
 void DisplayUI::showBootScreen(const char* ssid) {
@@ -299,12 +299,12 @@ void DisplayUI::updateTime(const DateTimeInfo& timeInfo) {
             strncpy(_lastDayName, timeInfo.dayName, sizeof(_lastDayName));
         }
 
-        // 2. Reloj Gigante en formato HH:MM (Tamaño 6x horiz, 7x vert, centrado Y: 94)
+        // 2. Reloj Gigante en formato HH:MM (Tamaño 6x, centrado en tarjeta central)
         if (strncmp(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr)) != 0) {
             _tft.fillRect(72, 90, 176, 62, ILI9341_BLACK);
-            _tft.setTextSize(6, 7);
+            _tft.setTextSize(6);
             _tft.setTextColor(ILI9341_GREENYELLOW, ILI9341_BLACK);
-            _tft.setCursor(73, 94);
+            _tft.setCursor(72, 98);
             _tft.print(timeInfo.shortTimeStr);
             strncpy(_lastTimeStr, timeInfo.shortTimeStr, sizeof(_lastTimeStr));
         }
