@@ -1,6 +1,6 @@
 #include "weather_service.h"
 #include "time_service.h"
-#include <Adafruit_ILI9341.h>
+#include <TFT_eSPI.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
@@ -90,11 +90,11 @@ const char* getUvCategory(float uv) {
 }
 
 uint16_t getUvColor(float uv) {
-    if (uv < 2.5f) return ILI9341_GREEN;
-    if (uv < 5.5f) return ILI9341_YELLOW;
-    if (uv < 7.5f) return ILI9341_ORANGE;
-    if (uv < 10.5f) return ILI9341_RED;
-    return ILI9341_MAGENTA;
+    if (uv < 2.5f) return TFT_GREEN;
+    if (uv < 5.5f) return TFT_YELLOW;
+    if (uv < 7.5f) return TFT_ORANGE;
+    if (uv < 10.5f) return TFT_RED;
+    return TFT_MAGENTA;
 }
 
 WeatherService::WeatherService() {}

@@ -2,11 +2,32 @@
 
 #include <Arduino.h>
 #include <IPAddress.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include <TFT_eSPI.h>
 #include "time_service.h"
 #include "weather_service.h"
 #include "settings_manager.h"
+
+// Compatibilidad de colores ILI9341 con TFT_eSPI
+#ifndef ILI9341_BLACK
+#define ILI9341_BLACK       TFT_BLACK
+#define ILI9341_NAVY        TFT_NAVY
+#define ILI9341_DARKGREEN   TFT_DARKGREEN
+#define ILI9341_DARKCYAN    TFT_DARKCYAN
+#define ILI9341_MAROON      TFT_MAROON
+#define ILI9341_PURPLE      TFT_PURPLE
+#define ILI9341_OLIVE       TFT_OLIVE
+#define ILI9341_LIGHTGREY   TFT_LIGHTGREY
+#define ILI9341_DARKGREY    TFT_DARKGREY
+#define ILI9341_BLUE        TFT_BLUE
+#define ILI9341_GREEN       TFT_GREEN
+#define ILI9341_CYAN        TFT_CYAN
+#define ILI9341_RED         TFT_RED
+#define ILI9341_MAGENTA     TFT_MAGENTA
+#define ILI9341_YELLOW      TFT_YELLOW
+#define ILI9341_WHITE       TFT_WHITE
+#define ILI9341_ORANGE      TFT_ORANGE
+#define ILI9341_GREENYELLOW TFT_GREENYELLOW
+#endif
 
 enum TimerDisplayState {
     TIMER_UI_IDLE = 0,
@@ -52,7 +73,7 @@ public:
     bool isSleeping() const;
 
 private:
-    Adafruit_ILI9341 _tft;
+    TFT_eSPI _tft;
     int8_t _ledPin;
     char _lastTimeStr[10];
     char _lastDateStr[64];

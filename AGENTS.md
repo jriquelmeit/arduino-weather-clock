@@ -6,7 +6,7 @@
 - Cargar placa: `pio run -e nodemcuv2 -t upload`. Monitor serie: `pio device monitor` (115200 baudios); requiere la placa conectada.
 
 ## Especificaciones técnicas
-- Target: NodeMCU v2 / ESP-12E (ESP8266), Arduino, CPU a 160 MHz. Pantalla TFT ILI9341 de 320×240 por SPI, configurada a 80 MHz; dependencias firmware: Adafruit GFX, Adafruit ILI9341 y ArduinoJson.
+- Target: NodeMCU v2 / ESP-12E (ESP8266), Arduino, CPU a 160 MHz. Pantalla TFT ILI9341 de 320×240 por SPI, configurada a 80 MHz; dependencias firmware: TFT_eSPI (bodmer) y ArduinoJson.
 - Pines definidos en `include/config.h.example`: TFT CS/DC/RST = D8/D3/D4, MOSI/SCK = D7/D5; botones Prev/Next/Action = D1/D2/D6; buzzer = D0. Conserva este mapeo al cambiar hardware o configuración.
 - Usa Wi-Fi 2.4 GHz, hora NTP, pronóstico Open-Meteo y servidor web HTTP en puerto 80. Ajustes persistentes (incluidas alarmas) se guardan en LittleFS como `/config.json`.
 
