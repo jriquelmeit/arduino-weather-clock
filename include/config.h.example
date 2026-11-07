@@ -75,8 +75,26 @@
 // 3: Página 3               - Dashboard Central: Reloj Gigante + Santoral + UV
 // 4: Página 4               - Temporizador / Timer
 // 5: Página 5               - Despertador / Alarmas diarias
+// 6: Página 6               - Spotify Now Playing
 #define DISPLAY_PAGE_MODE            1
+
+// ==========================================
+// INTEGRACIÓN SPOTIFY (PÁGINA 6)
+// ==========================================
+// true: habilita módulo de Spotify | false: excluye módulo y ahorra memoria
+#define SPOTIFY_ENABLED              true
+#define SPOTIFY_POLL_INTERVAL_MS     3500UL // Intervalo de consulta en Página 6
+#define SPOTIFY_CLIENT_ID            "TU_SPOTIFY_CLIENT_ID"
+#define SPOTIFY_CLIENT_SECRET        "TU_SPOTIFY_CLIENT_SECRET"
+#define SPOTIFY_REFRESH_TOKEN        "TU_SPOTIFY_REFRESH_TOKEN"
+
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+#define TOTAL_PAGES                  6
+#define ENABLED_PAGE_6               true
+#else
 #define TOTAL_PAGES                  5
+#define ENABLED_PAGE_6               false
+#endif
 
 // Habilitación de páginas individuales (true: activa en navegación | false: omitida)
 #define ENABLED_PAGE_1               true

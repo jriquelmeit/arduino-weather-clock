@@ -65,6 +65,7 @@ void AppSettings::setDefaults() {
     enabledPage3 = ENABLED_PAGE_3;
     enabledPage4 = ENABLED_PAGE_4;
     enabledPage5 = ENABLED_PAGE_5;
+    enabledPage6 = ENABLED_PAGE_6;
 
     for (uint8_t i = 0; i < MAX_DAILY_ALARMS; i++) {
         alarms[i].setDefaults(i + 1);
@@ -76,7 +77,7 @@ bool AppSettings::isValid() const {
     if (strlen(locationLat) == 0 || strlen(locationLon) == 0) return false;
     if (defaultPage < 1 || defaultPage > TOTAL_PAGES) return false;
     if (alarmMelody < 1 || alarmMelody > MELODY_MAX_TYPE) return false;
-    if (!enabledPage1 && !enabledPage2 && !enabledPage3 && !enabledPage4 && !enabledPage5) return false;
+    if (!enabledPage1 && !enabledPage2 && !enabledPage3 && !enabledPage4 && !enabledPage5 && !enabledPage6) return false;
     return true;
 }
 
@@ -87,6 +88,7 @@ bool AppSettings::isPageEnabled(uint8_t page) const {
         case 3: return enabledPage3;
         case 4: return enabledPage4;
         case 5: return enabledPage5;
+        case 6: return enabledPage6;
         default: return false;
     }
 }
@@ -98,10 +100,11 @@ void AppSettings::setPageEnabled(uint8_t page, bool enabled) {
         case 3: enabledPage3 = enabled; break;
         case 4: enabledPage4 = enabled; break;
         case 5: enabledPage5 = enabled; break;
+        case 6: enabledPage6 = enabled; break;
         default: break;
     }
     // Salvaguarda: mantener activa al menos la página 1 si todas se desactivan
-    if (!enabledPage1 && !enabledPage2 && !enabledPage3 && !enabledPage4 && !enabledPage5) {
+    if (!enabledPage1 && !enabledPage2 && !enabledPage3 && !enabledPage4 && !enabledPage5 && !enabledPage6) {
         enabledPage1 = true;
     }
 }
@@ -218,6 +221,7 @@ bool SettingsManager::load() {
     _settings.enabledPage3 = doc["enabled_page_3"] | ENABLED_PAGE_3;
     _settings.enabledPage4 = doc["enabled_page_4"] | ENABLED_PAGE_4;
     _settings.enabledPage5 = doc["enabled_page_5"] | ENABLED_PAGE_5;
+    _settings.enabledPage6 = doc["enabled_page_6"] | ENABLED_PAGE_6;
 
     JsonArray alarmsArr = doc["alarms"].as<JsonArray>();
     if (alarmsArr) {
@@ -267,6 +271,7 @@ bool SettingsManager::save() {
     doc["enabled_page_3"] = _settings.enabledPage3;
     doc["enabled_page_4"] = _settings.enabledPage4;
     doc["enabled_page_5"] = _settings.enabledPage5;
+    doc["enabled_page_6"] = _settings.enabledPage6;
 
     JsonArray alarmsArr = doc["alarms"].to<JsonArray>();
     for (uint8_t i = 0; i < MAX_DAILY_ALARMS; i++) {

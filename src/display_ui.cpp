@@ -1,8 +1,21 @@
 #include "display_ui.h"
+#include "spotify_icons.h"
+#include <TJpg_Decoder.h>
 
 #define COLOR_BG_HEADER       0x0926
 #define COLOR_BORDER_CARD     0x2145
 #define COLOR_TEXT_MUTED      0x8410
+#define COLOR_SPOTIFY_GREEN   0x1DB9
+
+static TFT_eSPI *pSpotifyTft = nullptr;
+
+static bool tftJpgCallback(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+    if (y >= 240) return 0;
+    if (pSpotifyTft) {
+        pSpotifyTft->pushImage(x, y, w, h, bitmap);
+    }
+    return 1;
+}
 
 DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
     : _tft(),
@@ -17,7 +30,10 @@ DisplayUI::DisplayUI(uint8_t cs, uint8_t dc, uint8_t rst, int8_t ledPin)
       _lastAlarmSelected(-1),
       _lastAlarmEditMode(false),
       _lastAlarmEditField(ALARM_FIELD_NONE),
-      _lastAlarmTopIndex(255) {
+      _lastAlarmTopIndex(255),
+      _lastSpotifyTrackId(""),
+      _lastSpotifyPlaying(false),
+      _lastSpotifyProgressSec(0xFFFFFFFF) {
     _lastTimeStr[0] = '\0';
     _lastDateStr[0] = '\0';
     _lastStatusBarMsg[0] = '\0';
@@ -33,6 +49,12 @@ void DisplayUI::begin(uint8_t rotation, uint32_t spiFreq) {
     _tft.begin(); // Inicializar TFT_eSPI (frecuencia configurada en build_flags)
     _tft.setRotation(rotation);
     _tft.fillScreen(TFT_BLACK);
+
+    // Configurar decodificador JPEG para carátulas de Spotify
+    pSpotifyTft = &_tft;
+    TJpgDec.setJpgScale(1);
+    TJpgDec.setCallback(tftJpgCallback);
+    TJpgDec.setSwapBytes(true);
 }
 
 void DisplayUI::showBootScreen(const char* ssid) {
@@ -137,7 +159,16 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
     if (fullRedraw) {
         _tft.fillScreen(ILI9341_BLACK);
 
-        if (pageMode == 3) {
+        if (pageMode == 6) {
+            // Página 6: Barra de Cabecera con Logo Spotify (Y: 0..26)
+            _tft.fillRect(0, 0, 320, 26, COLOR_BG_HEADER);
+            _tft.drawFastHLine(0, 26, 320, COLOR_SPOTIFY_GREEN);
+            _tft.drawBitmap(8, 7, epd_bitmap_spotify_logo, 12, 12, COLOR_SPOTIFY_GREEN);
+            _tft.setTextSize(2);
+            _tft.setTextColor(COLOR_SPOTIFY_GREEN, COLOR_BG_HEADER);
+            _tft.setCursor(26, 6);
+            _tft.print("Spotify");
+        } else if (pageMode == 3) {
             // Página 3: Barra de Cabecera dedicada a la fecha y santoral (Y: 0..24)
             _tft.fillRect(0, 0, 320, 24, COLOR_BG_HEADER);
             _tft.drawFastHLine(0, 24, 320, ILI9341_CYAN);
@@ -172,7 +203,16 @@ void DisplayUI::drawBaseLayout(const char* locationName, uint8_t pageMode, bool 
         _tft.fillRect(0, 27, 320, 197, ILI9341_BLACK);
     }
 
-    if (pageMode == 5) {
+    if (pageMode == 6) {
+        // Página 6: Spotify Now Playing
+        _tft.drawRoundRect(4, 30, 312, 190, 8, COLOR_SPOTIFY_GREEN);
+        _tft.setTextSize(1);
+        _tft.setTextColor(COLOR_SPOTIFY_GREEN, ILI9341_BLACK);
+        _tft.setCursor(14, 36);
+        _tft.print("SPOTIFY NOW PLAYING");
+        _lastSpotifyTrackId = "";
+        _lastSpotifyProgressSec = 0xFFFFFFFF;
+    } else if (pageMode == 5) {
         // Página 5: Tarjeta grande para Despertador / Alarmas Diarias
         _tft.drawRoundRect(4, 30, 312, 190, 8, ILI9341_DARKCYAN);
         _tft.setTextSize(1);
@@ -1141,4 +1181,161 @@ void DisplayUI::wakeDisplay() {
 
 bool DisplayUI::isSleeping() const {
     return _isSleeping;
+}
+
+static void formatSpotifyTime(uint32_t ms, char *buffer, size_t bufSize) {
+    uint32_t totalSec = ms / 1000;
+    uint32_t minutes = totalSec / 60;
+    uint32_t seconds = totalSec % 60;
+    snprintf(buffer, bufSize, "%u:%02u", minutes, seconds);
+}
+
+void DisplayUI::updateSpotifyProgress(uint32_t progressMs, uint32_t durationMs) {
+    if (_isSleeping || _pageMode != 6) return;
+
+    uint32_t curSec = progressMs / 1000;
+    if (curSec == _lastSpotifyProgressSec && durationMs > 0) return;
+    _lastSpotifyProgressSec = curSec;
+
+    if (durationMs == 0) durationMs = 1;
+    if (progressMs > durationMs) progressMs = durationMs;
+
+    const int barX = 20;
+    const int barY = 136;
+    const int barW = 280;
+    const int barH = 6;
+
+    // Barra de fondo y relleno
+    int progressW = (int)(((float)progressMs / (float)durationMs) * barW);
+    if (progressW > barW) progressW = barW;
+
+    if (progressW > 0) {
+        _tft.fillRect(barX, barY, progressW, barH, COLOR_SPOTIFY_GREEN);
+    }
+    if (progressW < barW) {
+        _tft.fillRect(barX + progressW, barY, barW - progressW, barH, COLOR_BORDER_CARD);
+    }
+
+    // Tiempos formateados
+    char curTime[10], totTime[10];
+    formatSpotifyTime(progressMs, curTime, sizeof(curTime));
+    formatSpotifyTime(durationMs, totTime, sizeof(totTime));
+
+    _tft.setTextSize(1);
+    _tft.fillRect(barX, barY + 9, 60, 12, TFT_BLACK);
+    _tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    _tft.setCursor(barX, barY + 9);
+    _tft.print(curTime);
+
+    _tft.fillRect(barX + barW - 40, barY + 9, 40, 12, TFT_BLACK);
+    _tft.setCursor(barX + barW - 36, barY + 9);
+    _tft.print(totTime);
+}
+
+void DisplayUI::updateSpotifyUI(const SpotifyTrack& track, bool forceRedraw) {
+    if (_isSleeping || _pageMode != 6) return;
+
+    bool trackChanged = forceRedraw || (track.id != _lastSpotifyTrackId);
+    bool stateChanged = forceRedraw || (track.isPlaying != _lastSpotifyPlaying);
+
+    if (!track.hasData || (track.title.length() == 0 && !track.isPlaying)) {
+        if (trackChanged || forceRedraw) {
+            // Pantalla cuando no hay reproducción activa
+            _tft.fillRect(10, 46, 300, 168, TFT_BLACK);
+
+            // Icono de espera
+            _tft.drawRoundRect(128, 60, 64, 64, 8, COLOR_BORDER_CARD);
+            _tft.drawBitmap(154, 86, epd_bitmap_spotify_logo, 12, 12, COLOR_SPOTIFY_GREEN);
+
+            _tft.setTextSize(2);
+            _tft.setTextColor(TFT_WHITE, TFT_BLACK);
+            _tft.setCursor(68, 138);
+            _tft.print("Spotify Inactivo");
+
+            _tft.setTextSize(1);
+            _tft.setTextColor(COLOR_TEXT_MUTED, TFT_BLACK);
+            _tft.setCursor(54, 166);
+            _tft.print("Inicia reproduccion en tu dispositivo");
+
+            _tft.drawFastHLine(8, 186, 304, COLOR_BORDER_CARD);
+            _tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+            _tft.setCursor(14, 196);
+            _tft.print("Btn 1/2: Pagina  |  Btn 3 corto: Reanudar");
+
+            _lastSpotifyTrackId = "";
+            _lastSpotifyPlaying = false;
+        }
+        return;
+    }
+
+    if (trackChanged) {
+        // Limpiar el interior completo de la tarjeta para borrar cualquier texto previo (ej: "Spotify Inactivo")
+        _tft.fillRect(6, 42, 308, 176, TFT_BLACK);
+
+        // Marco para la carátula 64x64
+        _tft.drawRoundRect(16, 48, 68, 68, 4, COLOR_SPOTIFY_GREEN);
+
+        // Título de la pista (hasta 18 caracteres en tamaño 2)
+        _tft.setTextSize(2);
+        _tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        _tft.setCursor(94, 50);
+        String safeTitle = track.title;
+        if (safeTitle.length() > 18) {
+            safeTitle = safeTitle.substring(0, 17) + ".";
+        }
+        _tft.print(safeTitle);
+
+        // Artista (hasta 30 caracteres en tamaño 1)
+        _tft.setTextSize(1);
+        _tft.setTextColor(COLOR_SPOTIFY_GREEN, TFT_BLACK);
+        _tft.setCursor(94, 72);
+        String safeArtist = track.artist;
+        if (safeArtist.length() > 30) {
+            safeArtist = safeArtist.substring(0, 29) + ".";
+        }
+        _tft.print(safeArtist);
+
+        // Álbum (hasta 30 caracteres en tamaño 1)
+        _tft.setTextColor(COLOR_TEXT_MUTED, TFT_BLACK);
+        _tft.setCursor(94, 86);
+        String safeAlbum = track.album;
+        if (safeAlbum.length() > 30) {
+            safeAlbum = safeAlbum.substring(0, 29) + ".";
+        }
+        _tft.print(safeAlbum);
+
+        _lastSpotifyTrackId = track.id;
+    }
+
+    if (stateChanged || trackChanged) {
+        // Indicador de reproducción / pausa
+        _tft.fillRect(94, 104, 214, 18, TFT_BLACK);
+        _tft.setTextSize(1);
+        if (track.isPlaying) {
+            _tft.setTextColor(COLOR_SPOTIFY_GREEN, TFT_BLACK);
+            _tft.setCursor(94, 108);
+            _tft.print("> REPRODUCIENDO");
+        } else {
+            _tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+            _tft.setCursor(94, 108);
+            _tft.print("|| EN PAUSA");
+        }
+        _lastSpotifyPlaying = track.isPlaying;
+
+        // Pie de ayuda
+        _tft.drawFastHLine(8, 168, 304, COLOR_BORDER_CARD);
+        _tft.fillRect(8, 170, 304, 46, TFT_BLACK);
+
+        _tft.setTextSize(1);
+        _tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        _tft.setCursor(14, 176);
+        _tft.print("Btn 1/2: Pagina  |  Btn 3 corto: Play / Pausa");
+
+        _tft.setTextColor(COLOR_SPOTIFY_GREEN, TFT_BLACK);
+        _tft.setCursor(14, 194);
+        _tft.print("Mantener Btn 3: Siguiente cancion");
+    }
+
+    // Progreso
+    updateSpotifyProgress(track.progressMs, track.durationMs);
 }

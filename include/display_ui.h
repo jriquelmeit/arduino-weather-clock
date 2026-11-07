@@ -6,6 +6,7 @@
 #include "time_service.h"
 #include "weather_service.h"
 #include "settings_manager.h"
+#include "spotify_service.h"
 
 // Compatibilidad de colores ILI9341 con TFT_eSPI
 #ifndef ILI9341_BLACK
@@ -64,6 +65,8 @@ public:
     void updateAlarmUI(const DailyAlarm* alarms, uint8_t count, uint8_t selectedIndex,
                        bool editMode, AlarmEditField editField, bool forceRedraw = false);
     void showAlarmAlert(const char* timeStr, const char* label);
+    void updateSpotifyUI(const SpotifyTrack& track, bool forceRedraw = false);
+    void updateSpotifyProgress(uint32_t progressMs, uint32_t durationMs);
     void updateWifiStatus(bool connected, int rssi, const IPAddress& ip);
     void updateStatusBar(const char* message);
 
@@ -93,6 +96,11 @@ private:
     bool _lastAlarmEditMode;
     AlarmEditField _lastAlarmEditField;
     uint8_t _lastAlarmTopIndex;
+
+    // Estado interno para Spotify (Página 6)
+    String _lastSpotifyTrackId;
+    bool _lastSpotifyPlaying;
+    uint32_t _lastSpotifyProgressSec;
 
     void drawDailyForecast(const WeatherData& weather);
     void drawHourlyForecast(const WeatherData& weather);

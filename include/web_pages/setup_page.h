@@ -134,6 +134,9 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="p5" name="p5" value="1" style="width:auto"> Página 5: Despertador
         </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="p6" name="p6" value="1" style="width:auto"> Página 6: Spotify Now Playing
+        </label>
       </div>
     </div>
 
@@ -177,12 +180,12 @@ fetch('/api/status')
       if (d.config.page) document.getElementById('page').value = d.config.page;
     }
     if (d.enabled_pages) {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         const el = document.getElementById('p' + i);
         if (el) el.checked = !!d.enabled_pages[String(i)];
       }
     } else {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         const el = document.getElementById('p' + i);
         if (el) el.checked = true;
       }

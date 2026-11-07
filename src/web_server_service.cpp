@@ -176,8 +176,9 @@ void WebServerService::handleSaveConfig() {
     bool p3 = _server.hasArg("p3");
     bool p4 = _server.hasArg("p4");
     bool p5 = _server.hasArg("p5");
-    if (!p1 && !p2 && !p3 && !p4 && !p5) {
-        p1 = true; p2 = true; p3 = true; p4 = true; p5 = true;
+    bool p6 = _server.hasArg("p6");
+    if (!p1 && !p2 && !p3 && !p4 && !p5 && !p6) {
+        p1 = true; p2 = true; p3 = true; p4 = true; p5 = true; p6 = true;
     }
 
     if (melody < 1 || melody > MELODY_MAX_TYPE) melody = 1;
@@ -199,6 +200,7 @@ void WebServerService::handleSaveConfig() {
         _settings.setPageEnabled(3, p3);
         _settings.setPageEnabled(4, p4);
         _settings.setPageEnabled(5, p5);
+        _settings.setPageEnabled(6, p6);
         ok = _settings.save();
     }
 
@@ -258,6 +260,7 @@ void WebServerService::handleApiStatus() {
     pagesObj["3"] = s.enabledPage3;
     pagesObj["4"] = s.enabledPage4;
     pagesObj["5"] = s.enabledPage5;
+    pagesObj["6"] = s.enabledPage6;
 
     String json;
     serializeJson(doc, json);
@@ -467,6 +470,7 @@ void WebServerService::handleApiPages() {
         p["3"] = s.enabledPage3;
         p["4"] = s.enabledPage4;
         p["5"] = s.enabledPage5;
+        p["6"] = s.enabledPage6;
 
         String resp;
         serializeJson(doc, resp);

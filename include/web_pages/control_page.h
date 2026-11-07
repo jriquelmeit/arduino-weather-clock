@@ -89,12 +89,13 @@ body{background:var(--bg);color:var(--text);display:flex;justify-content:center;
       <span>Control de Pantalla TFT</span>
       <span id="sleep_badge" class="badge">Encendida</span>
     </div>
-    <div class="grid-5" style="margin-bottom:10px" id="page_buttons_grid">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;margin-bottom:10px" id="page_buttons_grid">
       <button class="btn btn-outline" id="btn_page1" onclick="setPage(1)">P1: Diario</button>
       <button class="btn btn-outline" id="btn_page2" onclick="setPage(2)">P2: Horas</button>
       <button class="btn btn-outline" id="btn_page3" onclick="setPage(3)">P3: Reloj</button>
       <button class="btn btn-outline" id="btn_page4" onclick="setPage(4)">P4: Timer</button>
       <button class="btn btn-outline" id="btn_page5" onclick="setPage(5)">P5: Alarma</button>
+      <button class="btn btn-outline" id="btn_page6" onclick="setPage(6)">P6: Spotify</button>
     </div>
     <button class="btn btn-outline" id="btn_sleep" onclick="toggleSleep()">Apagar Pantalla (Sleep)</button>
   </div>
@@ -273,7 +274,7 @@ function updateStatus() {
       curPage = d.page;
       isSleeping = d.sleeping;
 
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         const btn = document.getElementById('btn_page' + i);
         if (btn) {
           btn.classList.toggle('active', curPage === i);

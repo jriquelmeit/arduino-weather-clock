@@ -9,6 +9,15 @@
 #include "input_controller.h"
 #include "buzzer_controller.h"
 
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+#include "spotify_service.h"
+static SpotifyService spotify;
+static SpotifyTrack currentSpotifyTrack;
+static unsigned long lastSpotifyPoll = 0;
+static unsigned long lastSpotifyTick = 0;
+static String lastAlbumArtUrl = "";
+#endif
+
 // Instancias principales
 static SettingsManager settingsMgr;
 static DisplayUI ui(TFT_CS, TFT_DC, TFT_RST, TFT_LED_PIN);
@@ -136,19 +145,24 @@ void checkDailyAlarms(const DateTimeInfo& dt) {
 void switchPage(uint8_t newPage, bool fullRedraw) {
     uint8_t prevPage = currentPage;
     currentPage = newPage;
-    bool forceFull = fullRedraw || (newPage == 3) || (prevPage == 3);
+    bool forceFull = fullRedraw || (newPage == 3) || (prevPage == 3) || (newPage == 6) || (prevPage == 6);
     ui.drawBaseLayout(settingsMgr.get().locationName, currentPage, forceFull);
 
     DateTimeInfo dt;
     bool hasDt = getCurrentDateTime(dt);
     if (hasDt) {
         ui.updateDate(dt);
-        if (currentPage != 4 && currentPage != 5) {
+        if (currentPage != 4 && currentPage != 5 && currentPage != 6) {
             ui.updateTime(dt);
         }
     }
 
-    if (currentPage == 5) {
+    if (currentPage == 6) {
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+        ui.updateSpotifyUI(currentSpotifyTrack, true);
+        lastSpotifyPoll = 0; // Disparar consulta rápida a Spotify
+#endif
+    } else if (currentPage == 5) {
         ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField, true);
     } else if (currentPage == 4) {
         ui.updateTimer(timerRemainingSec, timerTotalSec, timerState, true);
@@ -525,6 +539,10 @@ void setup() {
     // 7. Iniciar Servidor Web en modo Estación (accesible en la red local)
     if (wifiOk) {
         webServer.beginStationServer();
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+        Serial.println(F("[Spotify] Obteniendo Access Token inicial..."));
+        spotify.refreshAccessToken();
+#endif
     }
 
     // 8. Dibujar plantilla inicial (redibujado completo)
@@ -749,6 +767,22 @@ void loop() {
                     ui.updateAlarmUI(settingsMgr.get().alarms, MAX_DAILY_ALARMS, selectedAlarmIndex, alarmEditMode, alarmEditField);
                 }
             }
+        } else if (currentPage == 6) {
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+            // En página 6: Control de reproducción de Spotify (sin beeps)
+            if (evAction == BTN_EVENT_SHORT_CLICK) {
+                Serial.println(F("[Spotify] Btn 3: Toggle Play/Pause"));
+                bool newPlaying = !currentSpotifyTrack.isPlaying;
+                spotify.togglePlayPause(currentSpotifyTrack.isPlaying);
+                currentSpotifyTrack.isPlaying = newPlaying;
+                ui.updateSpotifyUI(currentSpotifyTrack, false);
+                lastSpotifyPoll = now - SPOTIFY_POLL_INTERVAL_MS + 800;
+            } else if (evAction == BTN_EVENT_LONG_PRESS) {
+                Serial.println(F("[Spotify] Btn 3: Siguiente cancion (Next)"));
+                spotify.nextTrack();
+                lastSpotifyPoll = now - SPOTIFY_POLL_INTERVAL_MS + 1000;
+            }
+#endif
         }
     }
 
@@ -807,7 +841,7 @@ void loop() {
             checkDailyAlarms(dt);
             handleNightMode(dt);
             if (!ui.isSleeping() && !dailyAlarmActive) {
-                if (currentPage != 4 && currentPage != 5) {
+                if (currentPage != 4 && currentPage != 5 && currentPage != 6) {
                     ui.updateTime(dt);
                 }
                 ui.updateDate(dt);
@@ -838,7 +872,7 @@ void loop() {
                                        settingsMgr.get().locationLon,
                                        weatherData,
                                        HOURLY_FORECAST_STEP)) {
-            if (currentPage != 4 && !ui.isSleeping()) {
+            if (currentPage != 4 && currentPage != 6 && !ui.isSleeping()) {
                 ui.updateWeather(weatherData, currentPage);
             }
             initialWeatherFetched = true;
@@ -864,6 +898,42 @@ void loop() {
             }
         }
     }
+
+#if defined(SPOTIFY_ENABLED) && SPOTIFY_ENABLED
+    // ----------------------------------------------------
+    // 4. Sondeo condicional de Spotify (solo en Página 6 y despierto)
+    // ----------------------------------------------------
+    if (currentPage == 6 && !ui.isSleeping() && isConnected) {
+        // A. Interpolación local de progreso segundo a segundo (sin tráfico de red)
+        if (now - lastSpotifyTick >= 1000) {
+            lastSpotifyTick = now;
+            if (currentSpotifyTrack.isPlaying && currentSpotifyTrack.durationMs > 0) {
+                currentSpotifyTrack.progressMs += 1000;
+                if (currentSpotifyTrack.progressMs > currentSpotifyTrack.durationMs) {
+                    currentSpotifyTrack.progressMs = currentSpotifyTrack.durationMs;
+                }
+                ui.updateSpotifyProgress(currentSpotifyTrack.progressMs, currentSpotifyTrack.durationMs);
+            }
+        }
+
+        // B. Sondeo HTTPS periódico a Spotify cada SPOTIFY_POLL_INTERVAL_MS
+        if (now - lastSpotifyPoll >= SPOTIFY_POLL_INTERVAL_MS) {
+            lastSpotifyPoll = now;
+            SpotifyTrack newTrack;
+            if (spotify.getCurrentlyPlaying(newTrack)) {
+                bool trackChanged = (newTrack.id != currentSpotifyTrack.id);
+                currentSpotifyTrack = newTrack;
+                ui.updateSpotifyUI(currentSpotifyTrack, false);
+
+                // Si cambió de pista y tiene carátula disponible, descargar miniatura
+                if (trackChanged && currentSpotifyTrack.imageUrl.length() > 0 && currentSpotifyTrack.imageUrl != lastAlbumArtUrl) {
+                    lastAlbumArtUrl = currentSpotifyTrack.imageUrl;
+                    spotify.downloadAlbumArt(currentSpotifyTrack.imageUrl, 18, 50);
+                }
+            }
+        }
+    }
+#endif
 
     // Permitir ejecución suave de tareas de fondo
     delay(5);

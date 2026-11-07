@@ -52,6 +52,7 @@ struct AppSettings {
     bool enabledPage3;
     bool enabledPage4;
     bool enabledPage5;
+    bool enabledPage6;
 
     // Despertador
     DailyAlarm alarms[MAX_DAILY_ALARMS];
